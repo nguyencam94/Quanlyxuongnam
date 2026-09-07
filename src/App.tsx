@@ -1545,10 +1545,13 @@ const Sidebar = ({ activeTab, setActiveTab, user }: { activeTab: Tab, setActiveT
   return (
     <div className="hidden md:flex w-64 bg-white border-r border-slate-200 h-screen flex-col sticky top-0">
       <div className="p-6 border-b border-slate-100">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 shadow-sm shrink-0">
-            <MushroomIcon className="w-5.5 h-5.5" />
-          </div>
+        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+          <img 
+            src="/app-icon.png" 
+            alt="Trại Nấm Michfarm" 
+            className="w-9 h-9 rounded-xl shadow-xs shrink-0 object-cover border border-emerald-100" 
+            referrerPolicy="no-referrer" 
+          />
           <span className="tracking-tight text-emerald-800 font-extrabold text-lg">Trại Nấm Michfarm</span>
         </h1>
       </div>
@@ -2419,9 +2422,12 @@ export default function App() {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 p-6">
         <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl border border-slate-100 text-center">
-          <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-sm mx-auto mb-6">
-            <MushroomIcon className="w-10 h-10" />
-          </div>
+          <img 
+            src="/app-icon.png" 
+            alt="Trại Nấm Michfarm" 
+            className="w-20 h-20 rounded-2xl shadow-md border border-emerald-100 mx-auto mb-6 object-cover" 
+            referrerPolicy="no-referrer" 
+          />
           <h1 className="text-2xl font-black text-slate-900 mb-2">Trại Nấm Michfarm</h1>
           <p className="text-slate-500 mb-8 text-sm">Vui lòng đăng nhập để quản lý trang trại của bạn</p>
           <button 
@@ -2446,10 +2452,13 @@ export default function App() {
       
       {/* Mobile Top Header */}
       <div className="flex md:hidden items-center justify-between px-6 py-4 bg-white border-b border-slate-100 sticky top-0 z-40">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100 shadow-sm shrink-0">
-            <MushroomIcon className="w-5.5 h-5.5" />
-          </div>
+        <div className="flex items-center gap-2.5">
+          <img 
+            src="/app-icon.png" 
+            alt="Trại Nấm Michfarm" 
+            className="w-8 h-8 rounded-lg shadow-xs shrink-0 object-cover border border-emerald-100" 
+            referrerPolicy="no-referrer" 
+          />
           <span className="text-lg font-black text-emerald-800 tracking-tight">Trại Nấm Michfarm</span>
         </div>
         <div className="flex items-center gap-2">

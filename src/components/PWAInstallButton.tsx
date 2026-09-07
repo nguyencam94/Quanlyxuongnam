@@ -54,10 +54,13 @@ export const PWAInstallButton: React.FC<{ variant?: 'header' | 'banner' | 'compa
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-2xl border border-slate-100 text-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <Smartphone className="w-5 h-5" />
-                </div>
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/app-icon.png" 
+                  alt="Michfarm Logo" 
+                  className="w-11 h-11 rounded-xl shadow-xs border border-emerald-100 object-cover shrink-0" 
+                  referrerPolicy="no-referrer" 
+                />
                 <div>
                   <h3 className="text-base font-black text-slate-900">
                     Cài đặt BizFlow Michfarm

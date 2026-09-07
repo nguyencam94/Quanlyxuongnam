@@ -12,13 +12,13 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'app-icon.png'],
         manifest: {
           id: '/',
           name: 'BizFlow - Trại Nấm Michfarm',
           short_name: 'Michfarm',
           description: 'Ứng dụng quản lý Trại Nấm Michfarm: Thu chi, Đơn hàng, Nhân sự và Kế hoạch làm việc.',
-          theme_color: '#4f46e5',
+          theme_color: '#16a34a',
           background_color: '#ffffff',
           display: 'standalone',
           start_url: '/',
