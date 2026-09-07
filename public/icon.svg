@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#3730a3" />
+    </linearGradient>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <linearGradient id="stemGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1e1b4b" flood-opacity="0.35" />
+    </filter>
+  </defs>
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Content Group within Safe Zone -->
+  <g filter="url(#shadow)">
+    <!-- Mushroom Stem -->
+    <path d="M210 260 C205 340, 195 385, 205 400 C215 415, 297 415, 307 400 C317 385, 307 340, 302 260 Z" fill="url(#stemGrad)" />
+    <!-- Ground Grass Accent -->
+    <path d="M170 410 C210 400, 240 405, 256 405 C272 405, 302 400, 342 410 C348 412, 345 422, 335 422 C295 422, 217 422, 177 422 C167 422, 164 412, 170 410 Z" fill="#10b981" opacity="0.9" />
+
+    <!-- Mushroom Cap -->
+    <path d="M120 270 C110 180, 170 110, 256 110 C342 110, 402 180, 392 270 C385 285, 127 285, 120 270 Z" fill="url(#capGrad)" />
+
+    <!-- Cap Underneath Ring Shadow -->
+    <ellipse cx="256" cy="272" rx="130" ry="14" fill="#cbd5e1" opacity="0.6" />
+
+    <!-- Cap Spots / Dots -->
+    <circle cx="210" cy="180" r="22" fill="#4f46e5" opacity="0.85" />
+    <circle cx="300" cy="175" r="26" fill="#4f46e5" opacity="0.85" />
+    <circle cx="256" cy="225" r="18" fill="#4f46e5" opacity="0.85" />
+    <circle cx="160" cy="240" r="14" fill="#4f46e5" opacity="0.85" />
+    <circle cx="350" cy="235" r="16" fill="#4f46e5" opacity="0.85" />
+
+    <!-- Sprout Leaf / Farm Icon Accent -->
+    <path d="M256 110 C256 80, 290 75, 305 60 C305 90, 275 105, 256 110 Z" fill="#34d399" />
+  </g>
+</svg>

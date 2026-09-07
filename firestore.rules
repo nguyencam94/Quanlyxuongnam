@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: transactions
+    // Fields: type (income/expense), amount (number), category (string), date (timestamp), description (string), createdBy (uid)
+    //
+    // Collection: orders
+    // Fields: customerName (string), totalAmount (number), status (string), items (string), createdAt (timestamp), createdBy (uid)
+    //
+    // Collection: workers
+    // Fields: name (string), role (string), phone (string), salary (number), status (active/inactive)
+    //
+    // Collection: plans
+    // Fields: title (string), description (string), startDate (timestamp), endDate (timestamp), status (todo/in-progress/done), assignedTo (string)
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isValidTransaction(data) {
+      return data.type in ['income', 'expense'] &&
+             data.amount is number && data.amount >= 0 &&
+             data.date is timestamp &&
+             data.createdBy == request.auth.uid;
+    }
+
+    function isValidOrder(data) {
+      return data.customerName is string && data.customerName.size() > 0 && data.customerName.size() < 100 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'] &&
+             data.createdAt is timestamp &&
+             data.createdBy == request.auth.uid &&
+             (!('customerPhone' in data) || data.customerPhone is string) &&
+             (!('orderTime' in data) || data.orderTime is timestamp);
+    }
+
+    function isValidWorker(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role is string &&
+             data.status in ['active', 'inactive'];
+    }
+
+    function isValidPlan(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.startDate is timestamp &&
+             data.status in ['todo', 'in-progress', 'done'] &&
+             (!('subtasks' in data) || data.subtasks is list) &&
+             (!('budgetItems' in data) || data.budgetItems is list) &&
+             (!('extensions' in data) || data.extensions is list) &&
+             (!('extensionCount' in data) || data.extensionCount is number) &&
+             (!('originalStartDate' in data) || data.originalStartDate is timestamp);
+    }
+
+    // Rules
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update: if isAuthenticated() && isValidTransaction(request.resource.data) && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && isValidOrder(request.resource.data) && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidWorker(request.resource.data);
+    }
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPlan(request.resource.data);
+      allow update: if isAuthenticated() && isValidPlan(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+  }
+}

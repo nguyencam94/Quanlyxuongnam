@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Giao dịch thu chi của công ty",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "planId": { "type": "string" },
+        "planTitle": { "type": "string" },
+        "budgetItemId": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["type", "amount", "date", "createdBy"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Đơn hàng của khách hàng",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"] },
+        "items": { "type": "string" },
+        "orderTime": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["customerName", "totalAmount", "status", "createdAt", "createdBy"]
+    },
+    "Worker": {
+      "title": "Worker",
+      "description": "Thông tin nhân công",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "salary": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["name", "role", "status"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "description": "Kế hoạch làm việc / Nhiệm vụ",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+        "assignedTo": { "type": "string" },
+        "subtasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        },
+        "budgetItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "amount": { "type": "number" },
+              "category": { "type": "string" },
+              "isPaid": { "type": "boolean" },
+              "actualAmount": { "type": "number" },
+              "paidDate": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "estimatedCost": { "type": "number" },
+        "extensionCount": { "type": "number" },
+        "originalStartDate": { "type": "string", "format": "date-time" },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "extensionNumber": { "type": "number" },
+              "extendedAt": { "type": "string" },
+              "previousDate": { "type": "string" },
+              "newDate": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["title", "startDate", "status"]
+    }
+  },
+  "firestore": {
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Bộ sưu tập các giao dịch tài chính"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Bộ sưu tập các đơn hàng"
+    },
+    "/workers/{workerId}": {
+      "schema": "Worker",
+      "description": "Bộ sưu tập nhân sự"
+    },
+    "/plans/{planId}": {
+      "schema": "Plan",
+      "description": "Bộ sưu tập kế hoạch làm việc"
+    }
+  }
+}

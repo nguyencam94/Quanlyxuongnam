@@ -1,0 +1,8 @@
+{
+  "name": "BizFlow - Quản lý Doanh nghiệp",
+  "description": "Ứng dụng quản lý Trại Nấm Michfarm: Thu chi, Đơn hàng, Nhân sự và Kế hoạch làm việc theo lịch.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
