@@ -62,6 +62,60 @@ export const addTransaction = async (data: any) => {
   }
 };
 
+export const updateTransaction = async (transactionId: string, data: any) => {
+  try {
+    const transRef = doc(db, 'transactions', transactionId);
+    let dateVal: Timestamp;
+    if (data.date?.toDate) {
+      dateVal = data.date;
+    } else if (data.date instanceof Date) {
+      dateVal = Timestamp.fromDate(data.date);
+    } else if (typeof data.date === 'string') {
+      const parts = data.date.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+        dateVal = Timestamp.fromDate(d);
+      } else {
+        dateVal = Timestamp.fromDate(new Date(data.date));
+      }
+    } else {
+      dateVal = Timestamp.now();
+    }
+
+    const updatePayload: any = {
+      type: data.type,
+      amount: Number(data.amount),
+      category: data.category || '',
+      description: data.description || '',
+      date: dateVal
+    };
+
+    if (data.type === 'expense' && data.planId) {
+      updatePayload.planId = data.planId;
+      updatePayload.planTitle = data.planTitle || '';
+    } else {
+      updatePayload.planId = null;
+      updatePayload.planTitle = null;
+    }
+
+    if (data.budgetItemId) {
+      updatePayload.budgetItemId = data.budgetItemId;
+    }
+
+    await updateDoc(transRef, updatePayload);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `transactions/${transactionId}`);
+  }
+};
+
+export const deleteTransaction = async (transactionId: string) => {
+  try {
+    await deleteDoc(doc(db, 'transactions', transactionId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `transactions/${transactionId}`);
+  }
+};
+
 // Orders
 export const subscribeOrders = (callback: (data: any[]) => void) => {
   const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
