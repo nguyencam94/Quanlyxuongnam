@@ -99,12 +99,14 @@ import {
   Sparkles,
   Filter,
   SlidersHorizontal,
-  Search
+  Search,
+  BarChart3
 } from 'lucide-react';
 import { PlanBudgetManager } from './components/PlanBudgetManager';
 import { ExtendPlanModal } from './components/ExtendPlanModal';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { TransactionOverview } from './components/TransactionOverview';
 
 // --- Types ---
 type Tab = 'dashboard' | 'transactions' | 'orders' | 'workers' | 'plans';
@@ -207,12 +209,32 @@ const Plans = ({ plans }: { plans: any[] }) => {
     }
   }, [editingPlan]);
 
+  // Tự động kiểm tra: Mục tiêu nào đã hoàn thành đủ tất cả hạng mục thì tự động gán là hoàn thành
+  useEffect(() => {
+    plans.forEach(async (plan) => {
+      if (plan.subtasks && plan.subtasks.length > 0) {
+        const allCompleted = plan.subtasks.every((st: any) => st.completed);
+        if (allCompleted && plan.status !== 'done') {
+          try {
+            await updatePlan(plan.id, { status: 'done' });
+          } catch (e) {
+            console.error('Lỗi khi tự động gán hoàn thành kế hoạch:', e);
+          }
+        }
+      }
+    });
+  }, [plans]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const dataToSave = { ...formData };
+    if (dataToSave.subtasks && dataToSave.subtasks.length > 0 && dataToSave.subtasks.every((st: any) => st.completed)) {
+      dataToSave.status = 'done';
+    }
     if (editingPlan) {
-      await updatePlan(editingPlan.id, formData);
+      await updatePlan(editingPlan.id, dataToSave);
     } else {
-      await addPlan(formData);
+      await addPlan(dataToSave);
     }
     closeModal();
   };
@@ -234,7 +256,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
       title: newSubtask,
       completed: false
     };
-    setFormData({ ...formData, subtasks: [...formData.subtasks, subtask] });
+    const updatedSubtasks = [...formData.subtasks, subtask];
+    setFormData({ 
+      ...formData, 
+      subtasks: updatedSubtasks,
+      status: formData.status === 'done' ? 'in-progress' : formData.status
+    });
     setNewSubtask('');
   };
 
@@ -242,23 +269,47 @@ const Plans = ({ plans }: { plans: any[] }) => {
     const updatedSubtasks = formData.subtasks.map(st => 
       st.id === id ? { ...st, completed: !st.completed } : st
     );
-    setFormData({ ...formData, subtasks: updatedSubtasks });
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(st => st.completed);
+    let nextStatus = formData.status;
+    if (allCompleted) {
+      nextStatus = 'done';
+    } else if (formData.status === 'done') {
+      nextStatus = 'in-progress';
+    }
+    setFormData({ ...formData, subtasks: updatedSubtasks, status: nextStatus });
   };
 
   const removeSubtask = (id: string) => {
-    setFormData({ ...formData, subtasks: formData.subtasks.filter(st => st.id !== id) });
+    const updatedSubtasks = formData.subtasks.filter(st => st.id !== id);
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(st => st.completed);
+    let nextStatus = formData.status;
+    if (allCompleted) {
+      nextStatus = 'done';
+    }
+    setFormData({ ...formData, subtasks: updatedSubtasks, status: nextStatus });
   };
 
   const togglePlanStatus = async (plan: any) => {
     const newStatus = plan.status === 'done' ? 'todo' : 'done';
-    await updatePlan(plan.id, { status: newStatus });
+    const updates: any = { status: newStatus };
+    if (newStatus === 'done' && plan.subtasks && plan.subtasks.length > 0) {
+      updates.subtasks = plan.subtasks.map((st: any) => ({ ...st, completed: true }));
+    }
+    await updatePlan(plan.id, updates);
   };
 
   const toggleSubtaskInList = async (plan: any, subtaskId: string) => {
     const updatedSubtasks = plan.subtasks.map((st: any) => 
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     );
-    await updatePlan(plan.id, { subtasks: updatedSubtasks });
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((st: any) => st.completed);
+    const updates: any = { subtasks: updatedSubtasks };
+    if (allCompleted && plan.status !== 'done') {
+      updates.status = 'done';
+    } else if (!allCompleted && plan.status === 'done') {
+      updates.status = 'in-progress';
+    }
+    await updatePlan(plan.id, updates);
   };
 
   // Inline Handlers for Detail View
@@ -269,24 +320,44 @@ const Plans = ({ plans }: { plans: any[] }) => {
       completed: false
     };
     const updatedSubtasks = [...(plan.subtasks || []), subtask];
-    await updatePlan(plan.id, { subtasks: updatedSubtasks });
+    const updates: any = { subtasks: updatedSubtasks };
+    if (plan.status === 'done') {
+      updates.status = 'in-progress';
+    }
+    await updatePlan(plan.id, updates);
   };
 
   const handleToggleSubtaskDetail = async (plan: any, subtaskId: string) => {
     const updatedSubtasks = plan.subtasks.map((st: any) => 
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     );
-    await updatePlan(plan.id, { subtasks: updatedSubtasks });
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((st: any) => st.completed);
+    const updates: any = { subtasks: updatedSubtasks };
+    if (allCompleted && plan.status !== 'done') {
+      updates.status = 'done';
+    } else if (!allCompleted && plan.status === 'done') {
+      updates.status = 'in-progress';
+    }
+    await updatePlan(plan.id, updates);
   };
 
   const handleRemoveSubtaskDetail = async (plan: any, subtaskId: string) => {
     const updatedSubtasks = plan.subtasks.filter((st: any) => st.id !== subtaskId);
-    await updatePlan(plan.id, { subtasks: updatedSubtasks });
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((st: any) => st.completed);
+    const updates: any = { subtasks: updatedSubtasks };
+    if (allCompleted && plan.status !== 'done') {
+      updates.status = 'done';
+    }
+    await updatePlan(plan.id, updates);
   };
 
   const handleTogglePlanStatusDetail = async (plan: any) => {
     const newStatus = plan.status === 'done' ? 'todo' : 'done';
-    await updatePlan(plan.id, { status: newStatus });
+    const updates: any = { status: newStatus };
+    if (newStatus === 'done' && plan.subtasks && plan.subtasks.length > 0) {
+      updates.subtasks = plan.subtasks.map((st: any) => ({ ...st, completed: true }));
+    }
+    await updatePlan(plan.id, updates);
   };
 
   // Find active selected plan
@@ -574,7 +645,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
                   <select 
                     value={activePlan.status}
                     onChange={async (e) => {
-                      await updatePlan(activePlan.id, { status: e.target.value });
+                      const newStatus = e.target.value;
+                      const updates: any = { status: newStatus };
+                      if (newStatus === 'done' && activePlan.subtasks && activePlan.subtasks.length > 0) {
+                        updates.subtasks = activePlan.subtasks.map((st: any) => ({ ...st, completed: true }));
+                      }
+                      await updatePlan(activePlan.id, updates);
                     }}
                     className="text-xs font-bold bg-slate-50 border-none rounded-lg px-2.5 py-1.5 focus:ring-0 cursor-pointer text-slate-700"
                   >
@@ -1722,7 +1798,7 @@ const DEFAULT_CATEGORIES: Record<'income' | 'expense', string[]> = {
 };
 
 const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans?: any[] }) => {
-  const [subTab, setSubTab] = useState<'actual' | 'budget'>('actual');
+  const [subTab, setSubTab] = useState<'overview' | 'actual' | 'budget'>('overview');
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<any | null>(null);
@@ -2119,12 +2195,24 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">Theo dõi dòng tiền thực tế & dự toán ngân sách theo kế hoạch</p>
         </div>
 
-        {/* Sub-tab Switcher: Sổ Thu Chi vs Dự Toán Chi Theo Kế Hoạch */}
-        <div className="flex items-center p-1 bg-slate-200/70 rounded-2xl shrink-0 self-start sm:self-auto shadow-inner">
+        {/* Sub-tab Switcher: Tổng quan & Thống kê vs Sổ Thu Chi vs Dự Toán Chi Theo Kế Hoạch */}
+        <div className="flex items-center p-1 bg-slate-200/70 rounded-2xl shrink-0 self-start sm:self-auto shadow-inner overflow-x-auto max-w-full">
+          <button
+            onClick={() => setSubTab('overview')}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
+              subTab === 'overview' 
+                ? "bg-white text-indigo-700 shadow-sm" 
+                : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Tổng quan & Thống kê</span>
+          </button>
           <button
             onClick={() => setSubTab('actual')}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all",
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               subTab === 'actual' 
                 ? "bg-white text-indigo-700 shadow-sm" 
                 : "text-slate-600 hover:text-slate-900"
@@ -2136,14 +2224,14 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
           <button
             onClick={() => setSubTab('budget')}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all",
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all whitespace-nowrap",
               subTab === 'budget' 
                 ? "bg-white text-indigo-700 shadow-sm" 
                 : "text-slate-600 hover:text-slate-900"
             )}
           >
             <Wallet className="w-4 h-4" />
-            <span>Dự toán chi theo kế hoạch</span>
+            <span>Dự toán theo kế hoạch</span>
             {totalPlanBudget > 0 && (
               <span className="px-1.5 py-0.2 text-[10px] font-black bg-indigo-100 text-indigo-700 rounded-md">
                 {formatCurrency(totalPlanBudget)}
@@ -2154,7 +2242,19 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
       </div>
 
       {/* Subtab Content */}
-      {subTab === 'budget' ? (
+      {subTab === 'overview' ? (
+        <TransactionOverview
+          transactions={transactions}
+          plans={plans}
+          onOpenAddTransaction={handleOpenAdd}
+          onSwitchToActualList={(categoryFilter) => {
+            if (categoryFilter) {
+              setFilterCategory(categoryFilter);
+            }
+            setSubTab('actual');
+          }}
+        />
+      ) : subTab === 'budget' ? (
         <PlanBudgetManager plans={plans} transactions={transactions} />
       ) : (
         <div className="space-y-4 md:space-y-6">
@@ -2200,13 +2300,22 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
               </div>
               <p className="text-xs text-slate-400 mt-0.5">Các khoản thu chi tiền mặt, chuyển khoản đã thực hiện</p>
             </div>
-            <button 
-              onClick={handleOpenAdd}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs md:text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm giao dịch</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button 
+                onClick={() => setSubTab('overview')}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs md:text-sm font-bold transition-all"
+              >
+                <BarChart3 className="w-4 h-4 text-indigo-600" />
+                <span>Thống kê chi tiết</span>
+              </button>
+              <button 
+                onClick={handleOpenAdd}
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs md:text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm giao dịch</span>
+              </button>
+            </div>
           </div>
 
           {/* Advanced Filter Toolbar: Hạng mục, Thời gian, Kế hoạch, Loại, Tìm kiếm */}
