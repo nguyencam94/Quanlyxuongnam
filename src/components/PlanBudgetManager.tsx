@@ -453,23 +453,23 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
       <div className="bg-white p-3 md:p-4 rounded-2xl border border-slate-100 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Tìm theo kế hoạch, tên khoản chi, vật tư..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
           />
         </div>
 
         {/* Filter Dropdowns */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2">
           {/* Plan Selector */}
           <select
             value={selectedPlanFilter}
             onChange={(e) => setSelectedPlanFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 outline-none shrink-0"
+            className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-slate-200 text-base sm:text-xs font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 outline-none shrink-0 min-h-[44px]"
           >
             <option value="all">Tất cả kế hoạch</option>
             {plans.map(p => (
@@ -481,7 +481,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 outline-none shrink-0"
+            className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-slate-200 text-base sm:text-xs font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 outline-none shrink-0 min-h-[44px]"
           >
             <option value="all">Mọi trạng thái chi</option>
             <option value="unpaid">Chưa chi (Dự kiến)</option>
@@ -654,20 +654,20 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1.5">
                                 {/* Quick Pay Button: convert to real transaction */}
                                 {!isPaid ? (
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPayModal(plan, item)}
-                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1 active:scale-95"
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1 min-h-[36px] active:scale-95 touch-manipulation"
                                     title="Ghi nhận chi thực tế vào sổ Thu Chi"
                                   >
                                     <ArrowUpRight className="w-3.5 h-3.5" />
                                     <span>Chi thực tế</span>
                                   </button>
                                 ) : (
-                                  <span className="px-2 py-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 rounded-lg flex items-center gap-1">
+                                  <span className="px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-xl flex items-center gap-1 min-h-[36px]">
                                     <Check className="w-3.5 h-3.5" /> Đã chi
                                   </span>
                                 )}
@@ -675,7 +675,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditItem(plan.id, item)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all min-w-[36px] min-h-[36px] flex items-center justify-center active:scale-95 touch-manipulation"
                                   title="Chỉnh sửa"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -683,7 +683,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteBudgetItem(plan.id, item.id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all min-w-[36px] min-h-[36px] flex items-center justify-center active:scale-95 touch-manipulation"
                                   title="Xóa"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -749,9 +749,9 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                 </div>
                 <button
                   onClick={() => setShowAddBudgetModal(false)}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600"
                 >
-                  <X className="w-5 h-5 text-slate-400" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -763,13 +763,13 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                       Áp dụng cho Kế hoạch
                     </label>
 
-                    <div className="flex gap-2 mb-2">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
                       <button
                         type="button"
                         onClick={() => setIsCreatingNewPlan(false)}
                         className={cn(
-                          "flex-1 py-2 text-xs font-bold rounded-xl border transition-all",
-                          !isCreatingNewPlan ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-slate-200 text-slate-500"
+                          "py-2.5 text-xs font-bold rounded-xl border transition-all min-h-[42px] active:scale-95 touch-manipulation",
+                          !isCreatingNewPlan ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold" : "border-slate-200 text-slate-500"
                         )}
                       >
                         Chọn kế hoạch có sẵn
@@ -778,8 +778,8 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                         type="button"
                         onClick={() => setIsCreatingNewPlan(true)}
                         className={cn(
-                          "flex-1 py-2 text-xs font-bold rounded-xl border transition-all",
-                          isCreatingNewPlan ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-slate-200 text-slate-500"
+                          "py-2.5 text-xs font-bold rounded-xl border transition-all min-h-[42px] active:scale-95 touch-manipulation",
+                          isCreatingNewPlan ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold" : "border-slate-200 text-slate-500"
                         )}
                       >
                         + Tạo kế hoạch mới
@@ -791,7 +791,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                         value={selectedPlanForBudget}
                         onChange={(e) => setSelectedPlanForBudget(e.target.value)}
                         required
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                        className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium min-h-[44px]"
                       >
                         {plans.map(p => (
                           <option key={p.id} value={p.id}>{p.title}</option>
@@ -804,7 +804,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                         value={newPlanTitle}
                         onChange={(e) => setNewPlanTitle(e.target.value)}
                         required
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                       />
                     )}
                   </div>
@@ -821,7 +821,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     placeholder="VD: Mua 1.000 bịch phôi nấm bào ngư xám..."
                     value={budgetFormData.title}
                     onChange={(e) => setBudgetFormData({ ...budgetFormData, title: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                   />
                 </div>
 
@@ -839,10 +839,11 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     type="number"
                     min="0"
                     step="1000"
+                    inputMode="numeric"
                     required
                     value={budgetFormData.amount || ''}
                     onChange={(e) => setBudgetFormData({ ...budgetFormData, amount: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                     placeholder="Nhập số tiền..."
                   />
                 </div>
@@ -855,7 +856,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                   <select
                     value={budgetFormData.category}
                     onChange={(e) => setBudgetFormData({ ...budgetFormData, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium min-h-[44px]"
                   >
                     {BUDGET_CATEGORIES.map(cat => (
                       <option key={cat.id} value={cat.label}>{cat.label}</option>
@@ -873,7 +874,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     placeholder="Ghi chú thêm về nhà cung cấp, số lượng, điều kiện thanh toán..."
                     value={budgetFormData.notes}
                     onChange={(e) => setBudgetFormData({ ...budgetFormData, notes: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                   />
                 </div>
 
@@ -882,13 +883,13 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                   <button
                     type="button"
                     onClick={() => setShowAddBudgetModal(false)}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all"
+                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-indigo-100"
+                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-indigo-100 min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     {editingItem ? 'Cập nhật' : 'Lưu dự toán'}
                   </button>
@@ -902,12 +903,12 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
       {/* 6. Modal: Confirm Payment (Ghi nhận chi thực tế) */}
       <AnimatePresence>
         {payingItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl"
+              className="bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                 <div>
@@ -916,9 +917,9 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                 </div>
                 <button
                   onClick={() => setPayingItem(null)}
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600"
                 >
-                  <X className="w-5 h-5 text-slate-400" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -953,10 +954,11 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     type="number"
                     min="0"
                     step="1000"
+                    inputMode="numeric"
                     required
                     value={payFormData.amount || ''}
                     onChange={(e) => setPayFormData({ ...payFormData, amount: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none min-h-[44px]"
                   />
                   {payFormData.amount !== payingItem.item.amount && (
                     <p className={cn(
@@ -980,7 +982,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     required
                     value={payFormData.date}
                     onChange={(e) => setPayFormData({ ...payFormData, date: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-emerald-500 outline-none min-h-[44px]"
                   />
                 </div>
 
@@ -993,7 +995,7 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                     type="text"
                     value={payFormData.notes}
                     onChange={(e) => setPayFormData({ ...payFormData, notes: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-emerald-500 outline-none min-h-[44px]"
                   />
                 </div>
 
@@ -1002,13 +1004,13 @@ export const PlanBudgetManager: React.FC<PlanBudgetManagerProps> = ({ plans, tra
                   <button
                     type="button"
                     onClick={() => setPayingItem(null)}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all"
+                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-1.5"
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-1.5 min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     <Check className="w-4 h-4" />
                     <span>Xác nhận chi</span>

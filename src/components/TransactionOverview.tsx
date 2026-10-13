@@ -562,15 +562,15 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
           </div>
         </div>
 
-        {/* Time Selector Pills & Navigator */}
+          {/* Time Selector Pills & Navigator */}
         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-none -mx-1 px-1 touch-pan-x">
             <button
               onClick={() => handlePeriodChange('this_week')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'this_week'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -579,9 +579,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('last_week')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'last_week'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -590,9 +590,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('this_month')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'this_month'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -601,9 +601,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('last_month')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'last_month'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -612,9 +612,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('today')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'today'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -623,9 +623,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('all')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'all'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -634,9 +634,9 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
             <button
               onClick={() => handlePeriodChange('custom')}
               className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0",
+                "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 min-h-[38px] active:scale-95 touch-manipulation",
                 period === 'custom'
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-indigo-600 text-white shadow-xs font-black"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
@@ -650,7 +650,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
               <button
                 onClick={handlePrevPeriod}
                 title="Kỳ trước"
-                className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors shadow-2xs"
+                className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors shadow-2xs active:scale-95 touch-manipulation"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -660,7 +660,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
               <button
                 onClick={handleNextPeriod}
                 title="Kỳ sau"
-                className="p-1.5 rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors shadow-2xs"
+                className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-slate-900 transition-colors shadow-2xs active:scale-95 touch-manipulation"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -671,28 +671,28 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
         {/* Custom Date Pickers */}
         {period === 'custom' && (
           <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-bold text-slate-500">Từ ngày:</span>
+            <div className="flex items-center gap-2 text-xs flex-1 min-w-[150px]">
+              <span className="font-bold text-slate-500 text-[11px]">Từ ngày:</span>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="px-3 py-2 rounded-xl border border-slate-200 text-base sm:text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none w-full min-h-[40px]"
               />
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-bold text-slate-500">Đến ngày:</span>
+            <div className="flex items-center gap-2 text-xs flex-1 min-w-[150px]">
+              <span className="font-bold text-slate-500 text-[11px]">Đến ngày:</span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="px-3 py-2 rounded-xl border border-slate-200 text-base sm:text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none w-full min-h-[40px]"
               />
             </div>
             {(customStart || customEnd) && (
               <button
                 onClick={() => { setCustomStart(''); setCustomEnd(''); }}
-                className="text-xs text-indigo-600 hover:underline font-bold"
+                className="text-xs text-indigo-600 hover:underline font-bold py-2 min-h-[40px] flex items-center"
               >
                 Xóa ngày
               </button>
@@ -702,39 +702,39 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
       </div>
 
       {/* 2. Key KPI Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-5">
         {/* Card: Tổng Thu */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="bg-white p-4 md:p-5 rounded-2xl md:rounded-3xl border border-emerald-100 shadow-xs relative overflow-hidden group hover:border-emerald-300 transition-all"
+          className="bg-white p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border border-emerald-100 shadow-xs relative overflow-hidden group hover:border-emerald-300 transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
-          <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
+          <div className="relative z-10 flex flex-col justify-between h-full space-y-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Tổng Thu ({period === 'this_week' ? 'Tuần này' : period === 'this_month' ? 'Tháng này' : 'Kỳ này'})
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">Tổng Thu ({period === 'this_week' ? 'Tuần' : period === 'this_month' ? 'Tháng' : 'Kỳ'})</span>
               </span>
-              <span className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
-                <TrendingUp className="w-4 h-4" />
+              <span className="p-1.5 sm:p-2 bg-emerald-100 text-emerald-700 rounded-xl shrink-0">
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </span>
             </div>
 
             <div>
-              <p className="text-xl md:text-2xl font-black text-emerald-600 tracking-tight">
+              <p className="text-base sm:text-xl md:text-2xl font-black text-emerald-600 tracking-tight break-words">
                 +{formatCurrency(totalIncome)}
               </p>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
-                <span className="text-slate-500 font-medium">{incomeCount} giao dịch thu</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 text-[10px] sm:text-[11px] gap-0.5">
+                <span className="text-slate-500 font-medium truncate">{incomeCount} giao dịch</span>
                 {prevTotalIncome > 0 && (
                   <span className={cn(
-                    "font-bold flex items-center gap-0.5",
+                    "font-bold flex items-center gap-0.5 shrink-0",
                     incomeGrowth >= 0 ? "text-emerald-700" : "text-amber-600"
                   )}>
                     {incomeGrowth >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {incomeGrowth >= 0 ? `+${incomeGrowth}%` : `${incomeGrowth}%`} so kỳ trước
+                    {incomeGrowth >= 0 ? `+${incomeGrowth}%` : `${incomeGrowth}%`}
                   </span>
                 )}
               </div>
@@ -747,32 +747,32 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.05 }}
-          className="bg-white p-4 md:p-5 rounded-2xl md:rounded-3xl border border-red-100 shadow-xs relative overflow-hidden group hover:border-red-300 transition-all"
+          className="bg-white p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border border-red-100 shadow-xs relative overflow-hidden group hover:border-red-300 transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
-          <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
+          <div className="relative z-10 flex flex-col justify-between h-full space-y-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-red-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-                Tổng Chi ({period === 'this_week' ? 'Tuần này' : period === 'this_month' ? 'Tháng này' : 'Kỳ này'})
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-red-800 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                <span className="truncate">Tổng Chi ({period === 'this_week' ? 'Tuần' : period === 'this_month' ? 'Tháng' : 'Kỳ'})</span>
               </span>
-              <span className="p-2 bg-red-100 text-red-700 rounded-xl">
-                <TrendingDown className="w-4 h-4" />
+              <span className="p-1.5 sm:p-2 bg-red-100 text-red-700 rounded-xl shrink-0">
+                <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </span>
             </div>
 
             <div>
-              <p className="text-xl md:text-2xl font-black text-red-600 tracking-tight">
+              <p className="text-base sm:text-xl md:text-2xl font-black text-red-600 tracking-tight break-words">
                 -{formatCurrency(totalExpense)}
               </p>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
-                <span className="text-slate-500 font-medium">{expenseCount} giao dịch chi</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 text-[10px] sm:text-[11px] gap-0.5">
+                <span className="text-slate-500 font-medium truncate">{expenseCount} giao dịch</span>
                 {prevTotalExpense > 0 && (
                   <span className={cn(
-                    "font-bold flex items-center gap-0.5",
+                    "font-bold flex items-center gap-0.5 shrink-0",
                     expenseGrowth <= 0 ? "text-emerald-700" : "text-red-600"
                   )}>
-                    {expenseGrowth > 0 ? `+${expenseGrowth}%` : `${expenseGrowth}%`} so kỳ trước
+                    {expenseGrowth > 0 ? `+${expenseGrowth}%` : `${expenseGrowth}%`}
                   </span>
                 )}
               </div>
@@ -785,39 +785,39 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.1 }}
-          className="bg-white p-4 md:p-5 rounded-2xl md:rounded-3xl border border-indigo-100 shadow-xs relative overflow-hidden group hover:border-indigo-300 transition-all"
+          className="bg-white p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border border-indigo-100 shadow-xs relative overflow-hidden group hover:border-indigo-300 transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
-          <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
+          <div className="relative z-10 flex flex-col justify-between h-full space-y-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                Chênh lệch Thu - Chi
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                <span className="truncate">Chênh lệch</span>
               </span>
               <span className={cn(
-                "p-2 rounded-xl",
+                "p-1.5 sm:p-2 rounded-xl shrink-0",
                 netBalance >= 0 ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
               )}>
-                <Wallet className="w-4 h-4" />
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </span>
             </div>
 
             <div>
               <p className={cn(
-                "text-xl md:text-2xl font-black tracking-tight",
+                "text-base sm:text-xl md:text-2xl font-black tracking-tight break-words",
                 netBalance >= 0 ? "text-indigo-600" : "text-amber-600"
               )}>
                 {netBalance >= 0 ? `+${formatCurrency(netBalance)}` : formatCurrency(netBalance)}
               </p>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 text-[10px] sm:text-[11px] gap-0.5">
                 <span className={cn(
-                  "font-bold px-2 py-0.5 rounded-md text-[10px]",
+                  "font-bold px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] w-fit",
                   netBalance >= 0 ? "bg-indigo-50 text-indigo-700" : "bg-amber-50 text-amber-800"
                 )}>
-                  {netBalance >= 0 ? 'Dòng tiền dương' : 'Chi vượt thu'}
+                  {netBalance >= 0 ? 'Dương tiền' : 'Chi vượt'}
                 </span>
-                <span className="text-slate-400 font-medium">
-                  {totalIncome > 0 ? `Tỷ lệ chi: ${Math.round((totalExpense / totalIncome) * 100)}%` : '—'}
+                <span className="text-slate-400 font-medium truncate">
+                  {totalIncome > 0 ? `Chi: ${Math.round((totalExpense / totalIncome) * 100)}%` : '—'}
                 </span>
               </div>
             </div>
@@ -829,27 +829,27 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.15 }}
-          className="bg-white p-4 md:p-5 rounded-2xl md:rounded-3xl border border-slate-100 shadow-xs relative overflow-hidden group hover:border-slate-300 transition-all"
+          className="bg-white p-3 sm:p-4 md:p-5 rounded-2xl md:rounded-3xl border border-slate-100 shadow-xs relative overflow-hidden group hover:border-slate-300 transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
-          <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-slate-50 rounded-bl-full -z-0 opacity-70 group-hover:scale-110 transition-transform" />
+          <div className="relative z-10 flex flex-col justify-between h-full space-y-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] md:text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
-                Trung bình mỗi ngày
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span className="truncate">TB / ngày</span>
               </span>
-              <span className="p-2 bg-slate-100 text-slate-700 rounded-xl">
-                <CalendarDays className="w-4 h-4" />
+              <span className="p-1.5 sm:p-2 bg-slate-100 text-slate-700 rounded-xl shrink-0">
+                <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </span>
             </div>
 
             <div>
-              <p className="text-lg md:text-xl font-black text-slate-800 tracking-tight">
-                {formatCurrency(Math.round(avgExpensePerDay))} <span className="text-xs font-semibold text-slate-400">/ngày</span>
+              <p className="text-sm sm:text-xl md:text-xl font-black text-slate-800 tracking-tight break-words">
+                {formatCurrency(Math.round(avgExpensePerDay))}
               </p>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[11px]">
-                <span className="text-slate-500 font-medium">Thu TB: {formatCurrency(Math.round(avgIncomePerDay))}/ngày</span>
-                <span className="text-slate-400 font-medium">{daysInPeriod} ngày tính</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 text-[10px] sm:text-[11px] gap-0.5">
+                <span className="text-slate-500 font-medium truncate">Thu: {formatCurrency(Math.round(avgIncomePerDay))}</span>
+                <span className="text-slate-400 font-medium shrink-0">{daysInPeriod} ngày</span>
               </div>
             </div>
           </div>
@@ -857,14 +857,14 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
       </div>
 
       {/* 3. Timeline Charts: Diễn biến Thu Chi theo ngày/thời gian */}
-      <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+      <div className="bg-white p-3.5 sm:p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base md:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 shrink-0" />
               <span>Diễn biến Thu & Chi theo thời gian</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
               So sánh cột Thu (xanh) và Chi (đỏ) qua từng ngày để nắm bắt cao điểm chi tiêu
             </p>
           </div>
@@ -874,7 +874,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
               <button
                 onClick={() => setChartViewType('bar')}
                 className={cn(
-                  "px-3 py-1 rounded-lg transition-all",
+                  "px-2.5 sm:px-3 py-1 rounded-lg transition-all text-[11px] sm:text-xs",
                   chartViewType === 'bar' ? "bg-white text-indigo-700 shadow-2xs font-bold" : "hover:text-slate-900"
                 )}
               >
@@ -883,7 +883,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
               <button
                 onClick={() => setChartViewType('area')}
                 className={cn(
-                  "px-3 py-1 rounded-lg transition-all",
+                  "px-2.5 sm:px-3 py-1 rounded-lg transition-all text-[11px] sm:text-xs",
                   chartViewType === 'area' ? "bg-white text-indigo-700 shadow-2xs font-bold" : "hover:text-slate-900"
                 )}
               >
@@ -894,28 +894,28 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
         </div>
 
         {/* Chart Container */}
-        <div className="h-[280px] md:h-[350px] w-full pt-4">
+        <div className="h-[220px] sm:h-[280px] md:h-[350px] w-full pt-2 sm:pt-4">
           <ResponsiveContainer width="100%" height="100%">
             {chartViewType === 'bar' ? (
-              <BarChart data={timelineChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+              <BarChart data={timelineChartData} margin={{ top: 10, right: 5, left: -20, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="label" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }} 
-                  dy={8}
+                  tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} 
+                  dy={5}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10 }} 
+                  tick={{ fill: '#94a3b8', fontSize: 9 }} 
                   tickFormatter={(val) => {
-                    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}Tr`;
+                    if (val >= 1000000) return `${(val / 1000000).toFixed(0)}Tr`;
                     if (val >= 1000) return `${(val / 1000).toFixed(0)}k`;
                     return val;
                   }}
-                  dx={-5}
+                  dx={-2}
                 />
                 <Tooltip 
                   formatter={(val: any, name: any) => [formatCurrency(Number(val)), name === 'Thu' ? 'Thu nhập' : name === 'Chi' ? 'Chi phí' : name]}
@@ -929,15 +929,15 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
                     borderRadius: '16px', 
                     border: '1px solid #e2e8f0', 
                     boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 600
                   }}
                 />
-                <Bar dataKey="Thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                <Bar dataKey="Chi" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                <Bar dataKey="Thu" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="Chi" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             ) : (
-              <AreaChart data={timelineChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+              <AreaChart data={timelineChartData} margin={{ top: 10, right: 5, left: -20, bottom: 10 }}>
                 <defs>
                   <linearGradient id="colorThu" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
@@ -953,19 +953,19 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
                   dataKey="label" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }} 
-                  dy={8}
+                  tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} 
+                  dy={5}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 10 }} 
+                  tick={{ fill: '#94a3b8', fontSize: 9 }} 
                   tickFormatter={(val) => {
-                    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}Tr`;
+                    if (val >= 1000000) return `${(val / 1000000).toFixed(0)}Tr`;
                     if (val >= 1000) return `${(val / 1000).toFixed(0)}k`;
                     return val;
                   }}
-                  dx={-5}
+                  dx={-2}
                 />
                 <Tooltip 
                   formatter={(val: any, name: any) => [formatCurrency(Number(val)), name === 'Thu' ? 'Thu nhập' : name === 'Chi' ? 'Chi phí' : name]}
@@ -979,12 +979,12 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
                     borderRadius: '16px', 
                     border: '1px solid #e2e8f0', 
                     boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: 600
                   }}
                 />
-                <Area type="monotone" dataKey="Thu" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorThu)" />
-                <Area type="monotone" dataKey="Chi" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorChi)" />
+                <Area type="monotone" dataKey="Thu" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorThu)" />
+                <Area type="monotone" dataKey="Chi" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorChi)" />
               </AreaChart>
             )}
           </ResponsiveContainer>
@@ -1033,30 +1033,30 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {/* Switch between Expense Categories & Income Categories */}
-            <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/60 shadow-inner">
+            <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/60 shadow-inner w-full sm:w-auto justify-stretch">
               <button
                 onClick={() => setCategoryType('expense')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex-1 sm:flex-none",
                   categoryType === 'expense'
                     ? "bg-red-600 text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 )}
               >
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span>Hạng mục Chi ({formatCurrency(totalExpense)})</span>
+                <TrendingDown className="w-3.5 h-3.5 shrink-0" />
+                <span>Chi <span className="hidden sm:inline">({formatCurrency(totalExpense)})</span></span>
               </button>
               <button
                 onClick={() => setCategoryType('income')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex-1 sm:flex-none",
                   categoryType === 'income'
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 )}
               >
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Hạng mục Thu ({formatCurrency(totalIncome)})</span>
+                <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                <span>Thu <span className="hidden sm:inline">({formatCurrency(totalIncome)})</span></span>
               </button>
             </div>
           </div>
@@ -1134,20 +1134,20 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
 
           {/* Right Column: Ranked Category List with Details & Drill-down */}
           <div className="lg:col-span-7 space-y-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">
                 Xếp hạng chi tiêu theo hạng mục ({categoryStats.items.length} hạng mục)
               </h4>
               
               {/* Search Category */}
-              <div className="relative w-44 md:w-52">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="relative w-full sm:w-52">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Tìm hạng mục..."
                   value={categorySearchQuery}
                   onChange={(e) => setCategorySearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-2.5 py-1 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50 focus:bg-white"
+                  className="w-full pl-9 pr-3 py-2 text-base sm:text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50 focus:bg-white min-h-[40px]"
                 />
               </div>
             </div>
@@ -1206,7 +1206,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
                     <div className="flex items-center justify-between pt-1 text-[11px]">
                       <button
                         onClick={() => setExpandedCategory(isExpanded ? null : item.category)}
-                        className="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                        className="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 transition-colors py-1 min-h-[36px] active:scale-95 touch-manipulation"
                       >
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         <span>{isExpanded ? 'Thu gọn' : `Xem ${item.count} giao dịch cụ thể`}</span>
@@ -1214,7 +1214,7 @@ export const TransactionOverview: React.FC<TransactionOverviewProps> = ({
 
                       <button
                         onClick={() => onSwitchToActualList(item.category)}
-                        className="font-bold text-slate-500 hover:text-slate-800 hover:underline flex items-center gap-1"
+                        className="font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 py-1 px-2.5 rounded-lg bg-white border border-slate-200/80 shadow-2xs min-h-[36px] active:scale-95 touch-manipulation"
                         title="Lọc trong sổ thu chi"
                       >
                         <span>Lọc trong sổ</span>

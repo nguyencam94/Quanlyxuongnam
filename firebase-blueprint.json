@@ -100,9 +100,33 @@
               "reason": { "type": "string" }
             }
           }
-        }
+        },
+        "campaignId": { "type": "string" },
+        "campaignName": { "type": "string" }
       },
       "required": ["title", "startDate", "status"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "Chiến dịch / Vụ mùa sản xuất nấm",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "variety": { "type": "string" },
+        "location": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed", "planned", "paused"] },
+        "totalBags": { "type": "number" },
+        "expectedYield": { "type": "number" },
+        "actualYield": { "type": "number" },
+        "description": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "startDate", "status"]
     }
   },
   "firestore": {
@@ -121,6 +145,10 @@
     "/plans/{planId}": {
       "schema": "Plan",
       "description": "Bộ sưu tập kế hoạch làm việc"
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Bộ sưu tập chiến dịch / vụ mùa vào nấm"
     }
   }
 }

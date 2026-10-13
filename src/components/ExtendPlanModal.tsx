@@ -42,11 +42,26 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getDeadline = (p: any): Date => {
+    if (p?.endDate) {
+      return p.endDate?.toDate ? p.endDate.toDate() : new Date(p.endDate);
+    }
+    if (p?.startDate) {
+      return p.startDate?.toDate ? p.startDate.toDate() : new Date(p.startDate);
+    }
+    return new Date();
+  };
+
+  const getStartDate = (p: any): Date | null => {
+    if (!p?.startDate) return null;
+    return p.startDate?.toDate ? p.startDate.toDate() : new Date(p.startDate);
+  };
+
   useEffect(() => {
     if (plan) {
-      const planDate = plan.startDate?.toDate ? plan.startDate.toDate() : new Date(plan.startDate);
+      const deadline = getDeadline(plan);
       // Default to tomorrow or +1 day from current deadline
-      const baseDate = isPast(planDate) ? new Date() : planDate;
+      const baseDate = isPast(deadline) ? new Date() : deadline;
       const defaultNewDate = addDays(baseDate, 1);
       defaultNewDate.setHours(17, 0, 0, 0); // Default to 17:00
       setNewDateStr(format(defaultNewDate, "yyyy-MM-dd'T'HH:mm"));
@@ -57,13 +72,14 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
 
   if (!isOpen || !plan) return null;
 
-  const planDate = plan.startDate?.toDate ? plan.startDate.toDate() : new Date(plan.startDate);
-  const isOverdue = isPast(planDate) && plan.status !== 'done';
+  const planDeadline = getDeadline(plan);
+  const planStartDate = getStartDate(plan);
+  const isOverdue = isPast(planDeadline) && plan.status !== 'done';
   const currentCount = plan.extensionCount || (plan.extensions?.length || 0);
   const nextExtensionNumber = currentCount + 1;
 
   const handleQuickAddDays = (days: number) => {
-    const baseDate = isPast(planDate) ? new Date() : planDate;
+    const baseDate = isPast(planDeadline) ? new Date() : planDeadline;
     const targetDate = addDays(baseDate, days);
     targetDate.setHours(17, 0, 0, 0);
     setNewDateStr(format(targetDate, "yyyy-MM-dd'T'HH:mm"));
@@ -79,6 +95,11 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
     const selectedNewDate = new Date(newDateStr);
     if (isNaN(selectedNewDate.getTime())) {
       setError('Ngày giờ gia hạn không hợp lệ.');
+      return;
+    }
+
+    if (planStartDate && selectedNewDate < planStartDate) {
+      setError('Thời hạn hoàn thành mới phải sau ngày bắt đầu mục tiêu.');
       return;
     }
 
@@ -149,12 +170,26 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
               )}
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60 text-slate-600">
-              <span className="text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" /> Hạn hiện tại:
+            {planStartDate && (
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60 text-slate-600">
+                <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span> Ngày bắt đầu:
+                </span>
+                <span className="font-bold text-slate-700">
+                  {format(planStartDate, 'HH:mm - dd/MM/yyyy')}
+                </span>
+              </div>
+            )}
+
+            <div className={cn(
+              "flex items-center justify-between text-xs text-slate-600",
+              !planStartDate && "pt-1 border-t border-slate-200/60"
+            )}>
+              <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span> Hạn chót hiện tại:
               </span>
-              <span className="font-bold text-slate-800">
-                {format(planDate, 'HH:mm - dd/MM/yyyy')}
+              <span className="font-bold text-rose-700">
+                {format(planDeadline, 'HH:mm - dd/MM/yyyy')}
               </span>
             </div>
 
@@ -195,7 +230,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                     key={item.days}
                     type="button"
                     onClick={() => handleQuickAddDays(item.days)}
-                    className="py-2 px-1 text-center bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition-all border border-indigo-100 active:scale-95"
+                    className="py-2.5 px-1 text-center bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition-all border border-indigo-100 min-h-[40px] active:scale-95 touch-manipulation"
                   >
                     {item.label}
                   </button>
@@ -213,7 +248,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                 required
                 value={newDateStr}
                 onChange={(e) => setNewDateStr(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-white"
+                className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-white min-h-[44px]"
               />
               {newDateStr && (
                 <p className="text-[11px] text-indigo-600 font-semibold mt-1 flex items-center gap-1">
@@ -236,7 +271,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="VD: Chờ phôi giống, thiếu công nhân..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
               />
 
               {/* Suggestions chips */}
@@ -246,7 +281,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                     key={i}
                     type="button"
                     onClick={() => setReason(r)}
-                    className="text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-left"
+                    className="text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors text-left min-h-[32px] active:scale-95 touch-manipulation"
                   >
                     + {r}
                   </button>
@@ -268,7 +303,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all"
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all min-h-[48px] active:scale-95 touch-manipulation"
               >
                 Hủy
               </button>
@@ -276,7 +311,7 @@ export const ExtendPlanModal: React.FC<ExtendPlanModalProps> = ({
                 type="submit"
                 disabled={isSubmitting}
                 className={cn(
-                  "flex-[2] py-3 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md flex items-center justify-center gap-2",
+                  "flex-[2] py-3 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md flex items-center justify-center gap-2 min-h-[48px] active:scale-95 touch-manipulation",
                   isOverdue 
                     ? "bg-amber-600 hover:bg-amber-700 shadow-amber-200" 
                     : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"

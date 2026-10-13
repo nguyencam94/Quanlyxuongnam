@@ -61,6 +61,13 @@ service cloud.firestore {
              (!('originalStartDate' in data) || data.originalStartDate is timestamp);
     }
 
+    function isValidCampaign(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.startDate is timestamp &&
+             data.status in ['active', 'completed', 'planned', 'paused'] &&
+             (!('endDate' in data) || data.endDate is timestamp);
+    }
+
     // Rules
     match /transactions/{transactionId} {
       allow read: if isAuthenticated();
@@ -85,6 +92,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidPlan(request.resource.data);
       allow update: if isAuthenticated() && isValidPlan(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidCampaign(request.resource.data);
+      allow update: if isAuthenticated() && isValidCampaign(request.resource.data);
       allow delete: if isAuthenticated();
     }
     

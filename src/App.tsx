@@ -34,6 +34,7 @@ import {
   subscribeOrders, 
   subscribeWorkers, 
   subscribePlans,
+  subscribeCampaigns,
   addTransaction,
   updateTransaction,
   deleteTransaction,
@@ -59,7 +60,10 @@ import {
   isSameDay,
   addMonths,
   subMonths,
-  isToday
+  isToday,
+  addDays,
+  isAfter,
+  isBefore
 } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { 
@@ -100,16 +104,18 @@ import {
   Filter,
   SlidersHorizontal,
   Search,
-  BarChart3
+  BarChart3,
+  Sprout
 } from 'lucide-react';
 import { PlanBudgetManager } from './components/PlanBudgetManager';
 import { ExtendPlanModal } from './components/ExtendPlanModal';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { TransactionOverview } from './components/TransactionOverview';
+import { Campaigns } from './components/Campaigns';
 
 // --- Types ---
-type Tab = 'dashboard' | 'transactions' | 'orders' | 'workers' | 'plans';
+type Tab = 'dashboard' | 'campaigns' | 'plans' | 'transactions' | 'orders' | 'workers';
 
 // --- Components ---
 
@@ -141,7 +147,7 @@ const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
   );
 };
 
-const Plans = ({ plans }: { plans: any[] }) => {
+const Plans = ({ plans, campaigns = [] }: { plans: any[]; campaigns?: any[] }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
@@ -150,32 +156,59 @@ const Plans = ({ plans }: { plans: any[] }) => {
   const [formData, setFormData] = useState({ 
     title: '', 
     description: '', 
-    startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"), 
+    startDate: format(new Date(), "yyyy-MM-dd'T'08:00"), 
+    endDate: format(addDays(new Date(), 1), "yyyy-MM-dd'T'18:00"), 
     status: 'todo',
+    campaignId: '',
     subtasks: [] as any[]
   });
+  const [dateError, setDateError] = useState<string | null>(null);
   const [newSubtask, setNewSubtask] = useState('');
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [inlineSubtask, setInlineSubtask] = useState('');
   const [planToExtend, setPlanToExtend] = useState<any | null>(null);
+  const [listStatusFilter, setListStatusFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'overdue'>('all');
+  const [listSearch, setListSearch] = useState('');
 
-  const getPlanDate = (plan: any): Date | null => {
+  const getPlanStartDate = (plan: any): Date | null => {
     if (!plan?.startDate) return null;
     return plan.startDate?.toDate ? plan.startDate.toDate() : new Date(plan.startDate);
   };
 
+  const getPlanEndDate = (plan: any): Date | null => {
+    if (plan?.endDate) {
+      return plan.endDate?.toDate ? plan.endDate.toDate() : new Date(plan.endDate);
+    }
+    if (plan?.startDate) {
+      return plan.startDate?.toDate ? plan.startDate.toDate() : new Date(plan.startDate);
+    }
+    return null;
+  };
+
+  // Kept for backward compatibility
+  const getPlanDate = getPlanEndDate;
+
   const openAddModalForDate = (date: Date) => {
     setEditingPlan(null);
+    setDateError(null);
     const dateStr = format(date, 'yyyy-MM-dd');
     const now = new Date();
-    const timeStr = isSameDay(date, now) ? format(now, 'HH:mm') : '09:00';
+    const startTimeStr = isSameDay(date, now) ? format(now, 'HH:mm') : '08:00';
+    const startIso = `${dateStr}T${startTimeStr}`;
+    const endIso = `${dateStr}T18:00`;
+    const finalEndIso = isAfter(new Date(startIso), new Date(endIso))
+      ? `${format(addDays(date, 1), 'yyyy-MM-dd')}T18:00`
+      : endIso;
+
     setFormData({ 
       title: '', 
       description: '', 
-      startDate: `${dateStr}T${timeStr}`, 
+      startDate: startIso, 
+      endDate: finalEndIso, 
       status: 'todo',
+      campaignId: '',
       subtasks: []
     });
     setShowModal(true);
@@ -184,25 +217,39 @@ const Plans = ({ plans }: { plans: any[] }) => {
   const closeModal = () => {
     setShowModal(false);
     setEditingPlan(null);
+    setDateError(null);
     const dateStr = format(selectedDate || new Date(), 'yyyy-MM-dd');
     const now = new Date();
-    const timeStr = isSameDay(selectedDate || now, now) ? format(now, 'HH:mm') : '09:00';
+    const startTimeStr = isSameDay(selectedDate || now, now) ? format(now, 'HH:mm') : '08:00';
+    const startIso = `${dateStr}T${startTimeStr}`;
+    const endIso = `${dateStr}T18:00`;
+    const finalEndIso = isAfter(new Date(startIso), new Date(endIso))
+      ? `${format(addDays(selectedDate || now, 1), 'yyyy-MM-dd')}T18:00`
+      : endIso;
+
     setFormData({ 
       title: '', 
       description: '', 
-      startDate: `${dateStr}T${timeStr}`, 
+      startDate: startIso, 
+      endDate: finalEndIso, 
       status: 'todo',
+      campaignId: '',
       subtasks: []
     });
   };
 
   useEffect(() => {
     if (editingPlan) {
+      setDateError(null);
+      const sDate = getPlanStartDate(editingPlan);
+      const eDate = getPlanEndDate(editingPlan);
       setFormData({
         title: editingPlan.title,
         description: editingPlan.description || '',
-        startDate: format(editingPlan.startDate.toDate(), "yyyy-MM-dd'T'HH:mm"),
+        startDate: sDate ? format(sDate, "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        endDate: eDate ? format(eDate, "yyyy-MM-dd'T'HH:mm") : (sDate ? format(sDate, "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm")),
         status: editingPlan.status,
+        campaignId: editingPlan.campaignId || '',
         subtasks: editingPlan.subtasks || []
       });
       setShowModal(true);
@@ -227,7 +274,20 @@ const Plans = ({ plans }: { plans: any[] }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dataToSave = { ...formData };
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      setDateError('Thời hạn hoàn thành phải sau hoặc bằng ngày bắt đầu mục tiêu.');
+      return;
+    }
+    setDateError(null);
+    const dataToSave: any = { ...formData };
+    if (dataToSave.campaignId) {
+      const matched = campaigns.find(c => c.id === dataToSave.campaignId);
+      dataToSave.campaignName = matched ? matched.name : '';
+    } else {
+      dataToSave.campaignId = null;
+      dataToSave.campaignName = null;
+    }
+
     if (dataToSave.subtasks && dataToSave.subtasks.length > 0 && dataToSave.subtasks.every((st: any) => st.completed)) {
       dataToSave.status = 'done';
     }
@@ -368,42 +428,43 @@ const Plans = ({ plans }: { plans: any[] }) => {
     const totalSubtasks = activePlan.subtasks?.length || 0;
     const completedSubtasks = activePlan.subtasks?.filter((st: any) => st.completed).length || 0;
     const completionPercentage = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
-    const activePlanDate = getPlanDate(activePlan);
-    const isActiveOverdue = activePlanDate ? (isPast(activePlanDate) && activePlan.status !== 'done') : false;
+    const activePlanStartDate = getPlanStartDate(activePlan);
+    const activePlanEndDate = getPlanEndDate(activePlan);
+    const isActiveOverdue = activePlanEndDate ? (isPast(activePlanEndDate) && activePlan.status !== 'done') : false;
     const extensionCount = activePlan.extensionCount || (activePlan.extensions?.length || 0);
 
     return (
       <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300">
         {/* Back & Actions Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm md:bg-transparent md:p-0 md:border-none md:shadow-none">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-xs md:bg-transparent md:p-0 md:border-none md:shadow-none">
           <button 
             onClick={() => setSelectedPlanId(null)}
-            className="flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-bold transition-all px-2.5 py-1.5 hover:bg-slate-50 md:hover:bg-slate-100 rounded-xl text-xs md:text-sm self-start"
+            className="flex items-center gap-2 text-slate-700 hover:text-indigo-600 font-bold transition-all px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs sm:text-sm self-start min-h-[44px] active:scale-95 touch-manipulation"
           >
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-            <span>Quay lại danh sách</span>
+            <span>Quay lại</span>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <button 
               onClick={() => setPlanToExtend(activePlan)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 md:px-4 md:py-2 bg-amber-50 text-amber-800 font-bold hover:bg-amber-100 rounded-xl transition-all text-xs md:text-sm border border-amber-200"
+              className="flex items-center justify-center gap-1 px-2.5 py-2.5 sm:px-4 sm:py-2 bg-amber-50 text-amber-800 font-bold hover:bg-amber-100 rounded-xl transition-all text-xs md:text-sm border border-amber-200 active:scale-95 min-h-[44px] touch-manipulation"
             >
-              <CalendarClock className="w-3.5 h-3.5 text-amber-600" />
-              <span>Gia hạn {extensionCount > 0 ? `(Lần ${extensionCount + 1})` : ''}</span>
+              <CalendarClock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="truncate">Gia hạn {extensionCount > 0 ? `(${extensionCount + 1})` : ''}</span>
             </button>
             <button 
               onClick={() => setEditingPlan(activePlan)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 md:px-4 md:py-2 bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100 rounded-xl transition-all text-xs md:text-sm"
+              className="flex items-center justify-center gap-1 px-2.5 py-2.5 sm:px-4 sm:py-2 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-xl transition-all text-xs md:text-sm active:scale-95 min-h-[44px] touch-manipulation"
             >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Chỉnh sửa</span>
+              <Edit2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Sửa</span>
             </button>
             <button 
               onClick={() => setPlanToDelete(activePlan.id)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 md:px-4 md:py-2 bg-red-50 text-red-600 font-semibold hover:bg-red-100 rounded-xl transition-all text-xs md:text-sm"
+              className="flex items-center justify-center gap-1 px-2.5 py-2.5 sm:px-4 sm:py-2 bg-red-50 text-red-600 font-bold hover:bg-red-100 rounded-xl transition-all text-xs md:text-sm active:scale-95 min-h-[44px] touch-manipulation"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Xóa kế hoạch</span>
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Xóa</span>
             </button>
           </div>
         </div>
@@ -425,10 +486,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
                   </span>
                 </div>
                 <p className="text-xs md:text-sm text-amber-800/90 mt-1 leading-relaxed">
-                  {activePlan.originalStartDate && (
+                  {activePlan.originalEndDate ? (
+                    <span>Hạn ban đầu: <strong className="font-bold">{format(activePlan.originalEndDate.toDate ? activePlan.originalEndDate.toDate() : new Date(activePlan.originalEndDate), 'HH:mm - dd/MM/yyyy')}</strong> &rarr; </span>
+                  ) : activePlan.originalStartDate ? (
                     <span>Hạn ban đầu: <strong className="font-bold">{format(activePlan.originalStartDate.toDate ? activePlan.originalStartDate.toDate() : new Date(activePlan.originalStartDate), 'HH:mm - dd/MM/yyyy')}</strong> &rarr; </span>
-                  )}
-                  Hạn hiện tại: <strong className="font-bold">{activePlanDate ? format(activePlanDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}</strong>
+                  ) : null}
+                  Hạn hiện tại: <strong className="font-bold">{activePlanEndDate ? format(activePlanEndDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}</strong>
                 </p>
               </div>
             </div>
@@ -478,7 +541,7 @@ const Plans = ({ plans }: { plans: any[] }) => {
                 <button 
                   onClick={() => handleTogglePlanStatusDetail(activePlan)}
                   className={cn(
-                    "mt-0.5 p-0.5 rounded-md transition-colors",
+                    "min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 -mt-1 p-2 rounded-xl transition-transform active:scale-90 touch-manipulation shrink-0",
                     activePlan.status === 'done' ? "text-emerald-500" : "text-slate-300 hover:text-indigo-500"
                   )}
                 >
@@ -494,7 +557,7 @@ const Plans = ({ plans }: { plans: any[] }) => {
                     )}>
                       {activePlan.status === 'done' ? 'Hoàn thành' : activePlan.status === 'in-progress' ? 'Đang làm' : 'Chờ làm'}
                     </span>
-                    {activePlanDate && <CountdownTimer targetDate={activePlanDate} />}
+                    {activePlanEndDate && <CountdownTimer targetDate={activePlanEndDate} />}
                     {extensionCount > 0 && (
                       <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
                         <RotateCcw className="w-2.5 h-2.5" />
@@ -561,47 +624,50 @@ const Plans = ({ plans }: { plans: any[] }) => {
                 className="flex gap-2"
               >
                 <input 
-                  type="text"
+                  type="text" 
                   value={inlineSubtask}
                   onChange={(e) => setInlineSubtask(e.target.value)}
                   placeholder="Thêm hạng mục con mới..."
-                  className="flex-1 px-3 py-2 md:px-4 md:py-3 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="flex-1 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                 />
                 <button 
-                  type="submit"
-                  className="px-4 py-2 md:px-5 md:py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-1 text-xs md:text-sm shrink-0"
+                  type="submit" 
+                  className="px-4 py-2.5 sm:px-5 sm:py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5 text-xs sm:text-sm shrink-0 min-h-[44px] active:scale-95 touch-manipulation"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Thêm
+                  <Plus className="w-4 h-4" /> <span>Thêm</span>
                 </button>
               </form>
 
               {/* List of subtasks */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {activePlan.subtasks && activePlan.subtasks.length > 0 ? (
                   activePlan.subtasks.map((st: any) => (
-                    <div key={st.id} className="flex items-center justify-between p-3 md:p-4 bg-slate-50/50 rounded-xl md:rounded-2xl border border-slate-100/50 hover:bg-slate-50 transition-all group">
-                      <div className="flex items-center gap-2.5">
+                    <div key={st.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-50/70 rounded-xl md:rounded-2xl border border-slate-100 hover:bg-slate-50 transition-all group">
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                         <button 
                           onClick={() => handleToggleSubtaskDetail(activePlan, st.id)}
                           className={cn(
-                            "transition-colors p-0.5 rounded",
+                            "min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 p-2 rounded-xl transition-transform active:scale-90 touch-manipulation shrink-0",
                             st.completed ? "text-emerald-500" : "text-slate-300 hover:text-indigo-500"
                           )}
                         >
-                          {st.completed ? <CheckSquare className="w-4.5 h-4.5 md:w-5 md:h-5" /> : <Square className="w-4.5 h-4.5 md:w-5 md:h-5" />}
+                          {st.completed ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                         </button>
                         <span className={cn(
-                          "text-xs md:text-sm font-semibold transition-all break-all pr-2",
+                          "text-xs sm:text-sm font-semibold transition-all break-words select-none cursor-pointer flex-1",
                           st.completed ? "text-slate-400 line-through" : "text-slate-700"
-                        )}>
+                        )}
+                        onClick={() => handleToggleSubtaskDetail(activePlan, st.id)}
+                        >
                           {st.title}
                         </span>
                       </div>
                       <button 
                         onClick={() => handleRemoveSubtaskDetail(activePlan, st.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0"
+                        className="min-w-[40px] min-h-[40px] flex items-center justify-center p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 active:scale-95 touch-manipulation"
+                        title="Xóa hạng mục này"
                       >
-                        <Trash className="w-3.5 h-3.5" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   ))
@@ -617,17 +683,29 @@ const Plans = ({ plans }: { plans: any[] }) => {
           {/* Right Column: Information panel */}
           <div className="space-y-4 md:space-y-6">
             <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-3 md:space-y-4">
-              <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-1">Thông tin hạn chót</h3>
+              <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-1">Thời gian & Hạn chót</h3>
               <div className="space-y-2 md:space-y-3">
                 <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2 border-b border-slate-50">
-                  <span className="text-slate-500">Hạn hoàn thành:</span>
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span>Ngày bắt đầu:</span>
+                  </span>
                   <span className="font-bold text-slate-800 text-right">
-                    {activePlanDate ? format(activePlanDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}
+                    {activePlanStartDate ? format(activePlanStartDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2 border-b border-slate-50">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                    <span>Hạn hoàn thành:</span>
+                  </span>
+                  <span className="font-bold text-rose-700 text-right">
+                    {activePlanEndDate ? format(activePlanEndDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2 border-b border-slate-50">
                   <span className="text-slate-500">Thời gian còn lại:</span>
-                  {activePlanDate && <CountdownTimer targetDate={activePlanDate} />}
+                  {activePlanEndDate && <CountdownTimer targetDate={activePlanEndDate} />}
                 </div>
                 <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2 border-b border-slate-50">
                   <span className="text-slate-500">Số lần gia hạn:</span>
@@ -640,6 +718,17 @@ const Plans = ({ plans }: { plans: any[] }) => {
                     <span className="font-semibold text-slate-400">Chưa gia hạn</span>
                   )}
                 </div>
+                {activePlan.campaignName && (
+                  <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2 border-b border-slate-50">
+                    <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                      <Sprout className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>Chiến dịch:</span>
+                    </span>
+                    <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 text-xs">
+                      {activePlan.campaignName}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs md:text-sm py-1.5 md:py-2">
                   <span className="text-slate-500">Trạng thái:</span>
                   <select 
@@ -729,12 +818,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
         {/* Modal chỉnh sửa vẫn dùng chung */}
         <AnimatePresence>
           {showModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">
@@ -765,16 +854,70 @@ const Plans = ({ plans }: { plans: any[] }) => {
                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Thời gian hoàn thành</label>
-                      <input 
-                        type="datetime-local" 
-                        required
-                        value={formData.startDate}
-                        onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      />
+                    {campaigns && campaigns.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1.5">
+                          <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Thuộc Chiến dịch / Đợt vào nấm (Tùy chọn)</span>
+                        </label>
+                        <select
+                          value={formData.campaignId || ''}
+                          onChange={(e) => setFormData({ ...formData, campaignId: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-white font-medium text-sm"
+                        >
+                          <option value="">-- Không thuộc đợt nào (Kế hoạch chung) --</option>
+                          {campaigns.map((c: any) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} {c.variety ? `(${c.variety})` : ''} {c.location ? `— ${c.location}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-emerald-800 uppercase mb-2 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 ring-2 ring-emerald-200"></span>
+                          <span>Ngày bắt đầu mục tiêu</span>
+                        </label>
+                        <input 
+                          type="datetime-local" 
+                          required
+                          value={formData.startDate}
+                          onChange={(e) => {
+                            setFormData({...formData, startDate: e.target.value});
+                            setDateError(null);
+                          }}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-emerald-50/20 focus:bg-white text-base sm:text-sm min-h-[44px]"
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1">Mốc bắt đầu triển khai mục tiêu</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-rose-800 uppercase mb-2 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ring-2 ring-rose-200"></span>
+                          <span>Thời hạn hoàn thành</span>
+                        </label>
+                        <input 
+                          type="datetime-local" 
+                          required
+                          value={formData.endDate}
+                          onChange={(e) => {
+                            setFormData({...formData, endDate: e.target.value});
+                            setDateError(null);
+                          }}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500 outline-none transition-all bg-rose-50/20 focus:bg-white text-base sm:text-sm min-h-[44px]"
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1">Hạn chót hoàn thành mục tiêu</p>
+                      </div>
                     </div>
+
+                    {dateError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                        <span>{dateError}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-6 border-t border-slate-100">
@@ -900,37 +1043,72 @@ const Plans = ({ plans }: { plans: any[] }) => {
   const endDateGrid = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: startDateGrid, end: endDateGrid });
 
+  const getStartingPlansForDate = (date: Date) => {
+    return plans.filter(p => {
+      const pStart = getPlanStartDate(p);
+      return pStart ? isSameDay(pStart, date) : false;
+    });
+  };
+
+  const getDuePlansForDate = (date: Date) => {
+    return plans.filter(p => {
+      const pEnd = getPlanEndDate(p);
+      return pEnd ? isSameDay(pEnd, date) : false;
+    });
+  };
+
   const getPlansForDate = (date: Date) => {
     return plans.filter(p => {
-      const pDate = getPlanDate(p);
-      return pDate ? isSameDay(pDate, date) : false;
+      const pStart = getPlanStartDate(p);
+      const pEnd = getPlanEndDate(p);
+      return (pStart && isSameDay(pStart, date)) || (pEnd && isSameDay(pEnd, date));
     });
   };
 
   const selectedDayPlans = getPlansForDate(selectedDate);
   const currentMonthPlans = plans.filter(p => {
-    const pDate = getPlanDate(p);
-    return pDate ? isSameMonth(pDate, currentMonth) : false;
+    const pStart = getPlanStartDate(p);
+    const pEnd = getPlanEndDate(p);
+    return (pStart && isSameMonth(pStart, currentMonth)) || (pEnd && isSameMonth(pEnd, currentMonth));
   });
+
+  const filteredListPlans = useMemo(() => {
+    return plans.filter(p => {
+      if (listStatusFilter === 'todo' && p.status !== 'todo') return false;
+      if (listStatusFilter === 'in-progress' && p.status !== 'in-progress') return false;
+      if (listStatusFilter === 'done' && p.status !== 'done') return false;
+      if (listStatusFilter === 'overdue') {
+        const pEnd = getPlanEndDate(p);
+        if (!pEnd || !isPast(pEnd) || p.status === 'done') return false;
+      }
+      if (listSearch.trim()) {
+        const q = listSearch.toLowerCase().trim();
+        const matchTitle = (p.title || '').toLowerCase().includes(q);
+        const matchDesc = (p.description || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc) return false;
+      }
+      return true;
+    });
+  }, [plans, listStatusFilter, listSearch]);
 
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-900">Kế hoạch làm việc</h2>
-          <p className="text-slate-500 text-xs md:text-sm">Lên lịch theo dõi nhiệm vụ theo cuốn lịch hoặc danh sách</p>
+          <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Kế hoạch làm việc</h2>
+          <p className="text-slate-500 text-xs md:text-sm mt-0.5">Lên lịch theo dõi nhiệm vụ theo cuốn lịch hoặc danh sách</p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
           {/* View Mode Toggle Switch */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+          <div className="flex-1 sm:flex-initial flex bg-slate-200/70 p-1 rounded-2xl shadow-inner border border-slate-200/50">
             <button 
               onClick={() => setViewMode('calendar')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all",
+                "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all min-h-[40px] active:scale-95 touch-manipulation",
                 viewMode === 'calendar' 
-                  ? "bg-white text-indigo-600 shadow-sm" 
+                  ? "bg-white text-indigo-700 shadow-sm" 
                   : "text-slate-600 hover:text-slate-900"
               )}
             >
@@ -940,9 +1118,9 @@ const Plans = ({ plans }: { plans: any[] }) => {
             <button 
               onClick={() => setViewMode('list')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all",
+                "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all min-h-[40px] active:scale-95 touch-manipulation",
                 viewMode === 'list' 
-                  ? "bg-white text-indigo-600 shadow-sm" 
+                  ? "bg-white text-indigo-700 shadow-sm" 
                   : "text-slate-600 hover:text-slate-900"
               )}
             >
@@ -953,10 +1131,11 @@ const Plans = ({ plans }: { plans: any[] }) => {
 
           <button 
             onClick={() => openAddModalForDate(selectedDate)}
-            className="flex items-center gap-1 px-3.5 py-2 md:px-5 md:py-2.5 bg-indigo-600 text-white rounded-xl text-xs md:text-sm font-semibold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 shrink-0"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 shrink-0 min-h-[44px] active:scale-95 touch-manipulation"
           >
-            <Plus className="w-4 h-4 md:w-5 md:h-5" />
-            <span>Thêm nhiệm vụ</span>
+            <Plus className="w-4 h-4" />
+            <span className="hidden xs:inline">Thêm nhiệm vụ</span>
+            <span className="xs:hidden">Thêm mới</span>
           </button>
         </div>
       </div>
@@ -967,52 +1146,55 @@ const Plans = ({ plans }: { plans: any[] }) => {
           {/* Calendar Book Component */}
           <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm p-4 md:p-6">
             {/* Calendar Navigation & Month Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600 active:scale-95"
-                  title="Tháng trước"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <h3 className="text-lg md:text-xl font-black text-slate-900 capitalize min-w-[180px] text-center">
-                  {format(currentMonth, 'MMMM yyyy', { locale: vi })}
-                </h3>
-                <button 
-                  onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600 active:scale-95"
-                  title="Tháng sau"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 sm:mb-5 sm:pb-4 border-b border-slate-100">
+              <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <button 
+                    onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-700 active:scale-95 touch-manipulation"
+                    title="Tháng trước"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <h3 className="text-base sm:text-xl font-black text-slate-900 capitalize text-center px-1 truncate min-w-[130px] sm:min-w-[180px]">
+                    {format(currentMonth, 'MMMM yyyy', { locale: vi })}
+                  </h3>
+                  <button 
+                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-700 active:scale-95 touch-manipulation"
+                    title="Tháng sau"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
                 <button 
                   onClick={() => {
                     const today = new Date();
                     setCurrentMonth(today);
                     setSelectedDate(today);
                   }}
-                  className="ml-1 px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all active:scale-95"
+                  className="px-3 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all active:scale-95 shrink-0 min-h-[40px] touch-manipulation"
                 >
                   Hôm nay
                 </button>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex items-center justify-between sm:justify-start gap-2.5 text-xs text-slate-500">
                 <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-100">
+                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-100 text-[11px] sm:text-xs">
                     {currentMonthPlans.length} kế hoạch
                   </span>
-                  <span>trong tháng</span>
+                  <span className="text-[11px] sm:text-xs">trong tháng</span>
                 </div>
-                <div className="hidden sm:flex items-center gap-3 border-l border-slate-200 pl-3">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Hoàn thành</span>
+                {/* Legend: Chấm xanh = Bắt đầu, Chấm đỏ = Đến hạn */}
+                <div className="flex items-center gap-2 sm:border-l sm:border-slate-200 sm:pl-3 text-[11px] flex-wrap">
+                  <span className="flex items-center gap-1.5 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-xs ring-1 ring-emerald-300"></span>
+                    <span>Bắt đầu mục tiêu</span>
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                    <span>Chờ thực hiện</span>
+                  <span className="flex items-center gap-1.5 font-bold text-rose-800 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-xs ring-1 ring-rose-300"></span>
+                    <span>Đến hạn mục tiêu</span>
                   </span>
                 </div>
               </div>
@@ -1024,12 +1206,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
                 <div 
                   key={dayName} 
                   className={cn(
-                    "text-center py-1.5 text-[11px] md:text-xs font-bold uppercase tracking-wider",
+                    "text-center py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider",
                     idx >= 5 ? "text-amber-600" : "text-slate-500"
                   )}
                 >
-                  <span className="hidden md:inline">{dayName}</span>
-                  <span className="md:hidden">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][idx]}</span>
+                  <span className="hidden sm:inline">{dayName}</span>
+                  <span className="sm:hidden">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][idx]}</span>
                 </div>
               ))}
             </div>
@@ -1040,7 +1222,9 @@ const Plans = ({ plans }: { plans: any[] }) => {
                 const isCurrentMonth = isSameMonth(day, currentMonth);
                 const isSelected = isSameDay(day, selectedDate);
                 const isTodayDate = isToday(day);
-                const dayPlans = getPlansForDate(day);
+                const startingPlans = getStartingPlansForDate(day);
+                const duePlans = getDuePlansForDate(day);
+                const totalDayEvents = startingPlans.length + duePlans.length;
 
                 return (
                   <div
@@ -1088,45 +1272,94 @@ const Plans = ({ plans }: { plans: any[] }) => {
 
                     {/* Middle / Bottom: Task Previews or Indicator Dots */}
                     <div>
-                      {/* Mobile View: Dots */}
-                      <div className="flex sm:hidden items-center justify-center gap-1 mt-1">
-                        {dayPlans.slice(0, 3).map((p, idx) => (
+                      {/* Mobile View: Dấu chấm xanh (Bắt đầu) & Dấu chấm đỏ (Đến hạn) */}
+                      <div className="flex sm:hidden items-center justify-center gap-1 mt-1 flex-wrap">
+                        {startingPlans.slice(0, 3).map((p, idx) => (
                           <span 
-                            key={idx} 
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              p.status === 'done' ? "bg-emerald-500" : "bg-indigo-600"
-                            )} 
+                            key={`m-start-${p.id || idx}`} 
+                            className="w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-emerald-300 shadow-xs" 
+                            title={`Bắt đầu mục tiêu: ${p.title}`}
                           />
                         ))}
-                        {dayPlans.length > 3 && (
-                          <span className="text-[9px] font-bold text-slate-400">+{dayPlans.length - 3}</span>
+                        {duePlans.slice(0, 3).map((p, idx) => (
+                          <span 
+                            key={`m-due-${p.id || idx}`} 
+                            className="w-2 h-2 rounded-full bg-rose-500 ring-1 ring-rose-300 shadow-xs" 
+                            title={`Đến hạn mục tiêu: ${p.title}`}
+                          />
+                        ))}
+                        {totalDayEvents > 6 && (
+                          <span className="text-[8px] font-black text-slate-500">+{totalDayEvents - 6}</span>
                         )}
                       </div>
 
-                      {/* Desktop / Tablet View: Mini Task Badges */}
+                      {/* Desktop / Tablet View: Dot indicators + Mini Task Badges */}
                       <div className="hidden sm:flex flex-col gap-1 mt-1 w-full overflow-hidden">
-                        {dayPlans.slice(0, 2).map((p) => (
+                        {(startingPlans.length > 0 || duePlans.length > 0) && (
+                          <div className="flex items-center gap-1 mb-0.5 px-0.5 flex-wrap">
+                            {startingPlans.slice(0, 4).map((p, idx) => (
+                              <span 
+                                key={`d-dot-start-${p.id || idx}`}
+                                className="w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-emerald-300 shadow-xs shrink-0" 
+                                title={`Bắt đầu mục tiêu: ${p.title}`}
+                              />
+                            ))}
+                            {duePlans.slice(0, 4).map((p, idx) => (
+                              <span 
+                                key={`d-dot-due-${p.id || idx}`}
+                                className="w-2 h-2 rounded-full bg-rose-500 ring-1 ring-rose-300 shadow-xs shrink-0" 
+                                title={`Đến hạn mục tiêu: ${p.title}`}
+                              />
+                            ))}
+                            {totalDayEvents > 8 && (
+                              <span className="text-[8px] font-black text-slate-400">+{totalDayEvents - 8}</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Starting badges (Green) */}
+                        {startingPlans.slice(0, 2).map((p) => (
                           <div
-                            key={p.id}
+                            key={`start-badge-${p.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPlanId(p.id);
+                            }}
+                            className="text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-left transition-all bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 flex items-center gap-1"
+                            title={`[Bắt đầu] ${p.title}`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                            <span className="truncate">{p.title}</span>
+                          </div>
+                        ))}
+
+                        {/* Due badges (Red) */}
+                        {duePlans.slice(0, 2).map((p) => (
+                          <div
+                            key={`due-badge-${p.id}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedPlanId(p.id);
                             }}
                             className={cn(
-                              "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-left transition-all",
+                              "text-[10px] px-1.5 py-0.5 rounded truncate font-medium border text-left transition-all flex items-center gap-1",
                               p.status === 'done'
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200/70 line-through opacity-75"
-                                : "bg-indigo-50 text-indigo-800 border-indigo-100 hover:bg-indigo-100"
+                                ? "bg-slate-50 text-slate-400 border-slate-200 line-through opacity-75"
+                                : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
                             )}
-                            title={p.title}
+                            title={`[Hạn chót] ${p.title}`}
                           >
-                            {p.title}
+                            <span className={cn(
+                              "w-1.5 h-1.5 rounded-full shrink-0",
+                              p.status === 'done' ? "bg-slate-400" : "bg-rose-500"
+                            )}></span>
+                            <span className="truncate">{p.title}</span>
                           </div>
                         ))}
-                        {dayPlans.length > 2 && (
-                          <div className="text-[9px] md:text-[10px] font-bold text-indigo-600 pl-1">
-                            +{dayPlans.length - 2} việc nữa
+
+                        {totalDayEvents > 4 && (
+                          <div className="text-[9px] md:text-[10px] font-bold text-slate-500 pl-1">
+                            +{totalDayEvents - 4} việc nữa
                           </div>
                         )}
                       </div>
@@ -1158,7 +1391,7 @@ const Plans = ({ plans }: { plans: any[] }) => {
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {selectedDayPlans.length > 0 
-                      ? `${selectedDayPlans.length} nhiệm vụ (${selectedDayPlans.filter(p => p.status === 'done').length} đã hoàn thành)`
+                      ? `${selectedDayPlans.length} mục tiêu liên quan (${selectedDayPlans.filter(p => p.status === 'done').length} đã hoàn thành)`
                       : 'Chưa có nhiệm vụ nào được lên lịch trong ngày này'}
                   </p>
                 </div>
@@ -1176,7 +1409,12 @@ const Plans = ({ plans }: { plans: any[] }) => {
             {/* List of plans for the selected date */}
             <div className="grid grid-cols-1 gap-3">
               {selectedDayPlans.map((plan) => {
-                const planDate = getPlanDate(plan);
+                const planStartDate = getPlanStartDate(plan);
+                const planEndDate = getPlanEndDate(plan);
+                const isStartingToday = planStartDate ? isSameDay(planStartDate, selectedDate) : false;
+                const isDueToday = planEndDate ? isSameDay(planEndDate, selectedDate) : false;
+                const isOverdue = planEndDate ? (isPast(planEndDate) && plan.status !== 'done') : false;
+
                 return (
                   <motion.div 
                     layout
@@ -1188,7 +1426,7 @@ const Plans = ({ plans }: { plans: any[] }) => {
                         <button 
                           onClick={() => togglePlanStatus(plan)}
                           className={cn(
-                            "mt-0.5 p-0.5 rounded-md transition-colors shrink-0",
+                            "min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 -mt-1 p-2 rounded-xl transition-transform active:scale-90 touch-manipulation shrink-0",
                             plan.status === 'done' ? "text-emerald-500" : "text-slate-300 hover:text-indigo-500"
                           )}
                         >
@@ -1201,17 +1439,40 @@ const Plans = ({ plans }: { plans: any[] }) => {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                 <h4 className={cn(
                                   "font-bold text-sm md:text-base transition-all hover:text-indigo-600 truncate",
                                   plan.status === 'done' ? "text-slate-400 line-through" : "text-slate-900"
-                                )}>
+                                )}
+                                >
                                   {plan.title}
                                 </h4>
+
+                                {isStartingToday && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1 shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    Bắt đầu hôm nay
+                                  </span>
+                                )}
+
+                                {isDueToday && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-800 border border-rose-200 inline-flex items-center gap-1 shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                    Hạn chót hôm nay
+                                  </span>
+                                )}
+
                                 {plan.extensionCount > 0 && (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-0.5 shrink-0">
                                     <RotateCcw className="w-2.5 h-2.5 text-amber-600" />
                                     Gia hạn lần {plan.extensionCount}
+                                  </span>
+                                )}
+
+                                {plan.campaignName && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1 shrink-0">
+                                    <Sprout className="w-2.5 h-2.5 text-emerald-600" />
+                                    {plan.campaignName}
                                   </span>
                                 )}
                               </div>
@@ -1220,49 +1481,59 @@ const Plans = ({ plans }: { plans: any[] }) => {
                               )}
                             </div>
                             <div className="flex items-center justify-between sm:justify-start gap-2 mt-1 sm:mt-0" onClick={(e) => e.stopPropagation()}>
-                              {planDate && <CountdownTimer targetDate={planDate} />}
-                              {planDate && isPast(planDate) && plan.status !== 'done' && (
+                              {planEndDate && <CountdownTimer targetDate={planEndDate} />}
+                              {isOverdue && (
                                 <button 
                                   onClick={() => setPlanToExtend(plan)}
-                                  className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-[10px] flex items-center gap-1 transition-all shrink-0 border border-amber-200"
+                                  className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-[10px] flex items-center gap-1 transition-all shrink-0 border border-amber-200 min-h-[36px] active:scale-95 touch-manipulation"
                                   title="Gia hạn thời gian công việc"
                                 >
-                                  <CalendarClock className="w-3 h-3 text-amber-600" />
+                                  <CalendarClock className="w-3.5 h-3.5 text-amber-600" />
                                   <span>Gia hạn</span>
                                 </button>
                               )}
-                              <div className="flex items-center gap-0.5">
+                              <div className="flex items-center gap-1">
                                 <button 
                                   onClick={() => setPlanToExtend(plan)}
-                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                  className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all active:scale-95 touch-manipulation"
                                   title="Gia hạn công việc"
                                 >
-                                  <CalendarClock className="w-3.5 h-3.5" />
+                                  <CalendarClock className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => setEditingPlan(plan)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                  className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95 touch-manipulation"
                                   title="Chỉnh sửa"
                                 >
-                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => setPlanToDelete(plan.id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95 touch-manipulation"
                                   title="Xóa"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
                           </div>
                           
                           <div className="mt-2.5 pt-2.5 border-t border-slate-50 flex items-center justify-between text-[11px] md:text-xs">
-                            <div className="flex items-center gap-3">
-                              <span className="text-slate-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {planDate ? format(planDate, 'HH:mm') : 'Cả ngày'}
-                              </span>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {planStartDate && (
+                                <span className="text-slate-600 flex items-center gap-1.5 font-medium">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                  <span className="text-slate-400">Bắt đầu:</span>
+                                  <span>{format(planStartDate, 'HH:mm - dd/MM/yyyy')}</span>
+                                </span>
+                              )}
+                              {planEndDate && (
+                                <span className="text-slate-700 flex items-center gap-1.5 font-semibold">
+                                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                                  <span className="text-slate-400">Hạn chót:</span>
+                                  <span className="text-rose-700">{format(planEndDate, 'HH:mm - dd/MM/yyyy')}</span>
+                                </span>
+                              )}
                               {plan.subtasks?.length > 0 && (
                                 <div className="font-bold text-indigo-600 flex items-center gap-1">
                                   <ListTodo className="w-3 h-3" />
@@ -1304,137 +1575,211 @@ const Plans = ({ plans }: { plans: any[] }) => {
 
       {/* LIST VIEW */}
       {viewMode === 'list' && (
-        <div className="grid grid-cols-1 gap-3 md:gap-4">
-          {plans.map((plan) => {
-            const planDate = getPlanDate(plan);
-            return (
-              <motion.div 
-                layout
-                key={plan.id} 
-                className="bg-white rounded-xl md:rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-slate-200 hover:shadow-md transition-all duration-300"
-              >
-                <div className="p-4 md:p-6">
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <button 
-                      onClick={() => togglePlanStatus(plan)}
-                      className={cn(
-                        "mt-0.5 p-0.5 rounded-md transition-colors shrink-0",
-                        plan.status === 'done' ? "text-emerald-500" : "text-slate-300 hover:text-indigo-500"
-                      )}
-                    >
-                      {plan.status === 'done' ? <CheckSquare className="w-5 h-5 md:w-6 md:h-6" /> : <Square className="w-5 h-5 md:w-6 md:h-6" />}
-                    </button>
-                    
-                    <div 
-                      onClick={() => setSelectedPlanId(plan.id)}
-                      className="flex-1 cursor-pointer min-w-0"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className={cn(
-                              "font-bold text-base md:text-lg transition-all hover:text-indigo-600 truncate",
-                              plan.status === 'done' ? "text-slate-400 line-through" : "text-slate-900"
-                            )}>
-                              {plan.title}
-                            </h4>
-                            {plan.extensionCount > 0 && (
-                              <span className="px-2 py-0.5 rounded text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1 shrink-0">
-                                <RotateCcw className="w-3 h-3 text-amber-600" />
-                                Đã gia hạn lần {plan.extensionCount}
-                              </span>
+        <div className="space-y-3.5">
+          {/* Search & Filter Toolbar */}
+          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2.5">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                placeholder="Tìm kế hoạch theo tiêu đề, mô tả..."
+                className="w-full pl-9 pr-8 py-2.5 text-base sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 bg-slate-50/60 focus:bg-white min-h-[44px]"
+              />
+              {listSearch && (
+                <button
+                  onClick={() => setListSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              {[
+                { id: 'all', label: 'Tất cả' },
+                { id: 'todo', label: 'Chờ làm' },
+                { id: 'in-progress', label: 'Đang làm' },
+                { id: 'done', label: 'Hoàn thành' },
+                { id: 'overdue', label: 'Quá hạn' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setListStatusFilter(tab.id as any)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 shrink-0 touch-manipulation min-h-[36px]",
+                    listStatusFilter === tab.id
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:gap-4">
+            {filteredListPlans.map((plan) => {
+              const planStartDate = getPlanStartDate(plan);
+              const planEndDate = getPlanEndDate(plan);
+              const isOverdue = planEndDate ? (isPast(planEndDate) && plan.status !== 'done') : false;
+              return (
+                <motion.div 
+                  layout
+                  key={plan.id} 
+                  className="bg-white rounded-xl md:rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-slate-200 hover:shadow-md transition-all duration-300"
+                >
+                  <div className="p-3.5 sm:p-5 md:p-6">
+                    <div className="flex items-start gap-3 md:gap-4">
+                      <button 
+                        onClick={() => togglePlanStatus(plan)}
+                        className={cn(
+                          "min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2 -mt-1 p-2 rounded-xl transition-transform active:scale-90 touch-manipulation shrink-0",
+                          plan.status === 'done' ? "text-emerald-500" : "text-slate-300 hover:text-indigo-500"
+                        )}
+                      >
+                        {plan.status === 'done' ? <CheckSquare className="w-5 h-5 md:w-6 md:h-6" /> : <Square className="w-5 h-5 md:w-6 md:h-6" />}
+                      </button>
+                      
+                      <div 
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className="flex-1 cursor-pointer min-w-0"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <h4 className={cn(
+                                "font-bold text-base md:text-lg transition-all hover:text-indigo-600 truncate",
+                                plan.status === 'done' ? "text-slate-400 line-through" : "text-slate-900"
+                              )}>
+                                {plan.title}
+                              </h4>
+                              {plan.extensionCount > 0 && (
+                                <span className="px-2 py-0.5 rounded text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1 shrink-0">
+                                  <RotateCcw className="w-3 h-3 text-amber-600" />
+                                  Đã gia hạn lần {plan.extensionCount}
+                                </span>
+                              )}
+                              {plan.campaignName && (
+                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1 shrink-0">
+                                  <Sprout className="w-3 h-3 text-emerald-600" />
+                                  {plan.campaignName}
+                                </span>
+                              )}
+                            </div>
+                            {plan.description && (
+                              <p className="text-xs md:text-sm text-slate-500 mt-1 line-clamp-2">{plan.description}</p>
                             )}
                           </div>
-                          <p className="text-xs md:text-sm text-slate-500 mt-1 line-clamp-2">{plan.description}</p>
-                        </div>
-                        <div className="flex items-center justify-between sm:justify-start gap-2 mt-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
-                          {planDate && <CountdownTimer targetDate={planDate} />}
-                          {planDate && isPast(planDate) && plan.status !== 'done' && (
-                            <button 
-                              onClick={() => setPlanToExtend(plan)}
-                              className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-xl text-xs flex items-center gap-1 transition-all shrink-0 border border-amber-200"
-                              title="Gia hạn thời gian công việc"
-                            >
-                              <CalendarClock className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Gia hạn</span>
-                            </button>
-                          )}
-                          <div className="flex items-center gap-0.5">
-                            <button 
-                              onClick={() => setPlanToExtend(plan)}
-                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                              title="Gia hạn công việc"
-                            >
-                              <CalendarClock className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            <button 
-                              onClick={() => setEditingPlan(plan)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            <button 
-                              onClick={() => setPlanToDelete(plan.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
+                          <div className="flex items-center justify-between sm:justify-start gap-2 mt-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
+                            {planEndDate && <CountdownTimer targetDate={planEndDate} />}
+                            {isOverdue && (
+                              <button 
+                                onClick={() => setPlanToExtend(plan)}
+                                className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-xl text-xs flex items-center gap-1 transition-all shrink-0 border border-amber-200 min-h-[36px] active:scale-95 touch-manipulation"
+                                title="Gia hạn thời gian công việc"
+                              >
+                                <CalendarClock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Gia hạn</span>
+                              </button>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => setPlanToExtend(plan)}
+                                className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all active:scale-95 touch-manipulation"
+                                title="Gia hạn công việc"
+                              >
+                                <CalendarClock className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => setEditingPlan(plan)}
+                                className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95 touch-manipulation"
+                                title="Chỉnh sửa"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => setPlanToDelete(plan.id)}
+                                className="min-w-[38px] min-h-[38px] flex items-center justify-center p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95 touch-manipulation"
+                                title="Xóa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between text-[11px] md:text-xs">
-                        <div className="flex items-center gap-3">
-                          <span className="text-slate-400 flex items-center gap-1">
-                            <CalendarDays className="w-3 h-3" />
-                            {planDate ? format(planDate, 'HH:mm - dd/MM/yyyy') : 'N/A'}
+                        
+                        <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between text-[11px] md:text-xs">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {planStartDate && (
+                              <span className="text-slate-600 flex items-center gap-1.5 font-medium">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                <span className="text-slate-400">Bắt đầu:</span>
+                                <span>{format(planStartDate, 'HH:mm - dd/MM/yyyy')}</span>
+                              </span>
+                            )}
+                            {planEndDate && (
+                              <span className="text-slate-700 flex items-center gap-1.5 font-semibold">
+                                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                                <span className="text-slate-400">Hạn chót:</span>
+                                <span className="text-rose-700">{format(planEndDate, 'HH:mm - dd/MM/yyyy')}</span>
+                              </span>
+                            )}
+                            {plan.subtasks?.length > 0 && (
+                              <div className="font-bold text-indigo-600 flex items-center gap-1">
+                                <ListTodo className="w-3 h-3" />
+                                <span>{plan.subtasks.filter((st: any) => st.completed).length}/{plan.subtasks.length} hạng mục con</span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="font-bold text-indigo-500 group-hover:translate-x-1 transition-all flex items-center gap-0.5 shrink-0">
+                            Chi tiết &rarr;
                           </span>
-                          {plan.subtasks?.length > 0 && (
-                            <div className="font-bold text-indigo-600 flex items-center gap-1">
-                              <ListTodo className="w-3 h-3" />
-                              <span>{plan.subtasks.filter((st: any) => st.completed).length}/{plan.subtasks.length} hạng mục con</span>
-                            </div>
-                          )}
                         </div>
-                        <span className="font-bold text-indigo-500 group-hover:translate-x-1 transition-all flex items-center gap-0.5 shrink-0">
-                          Chi tiết &rarr;
-                        </span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
-          {plans.length === 0 && (
-            <div className="bg-white p-8 md:p-12 rounded-xl md:rounded-2xl border border-dashed border-slate-200 text-center">
-              <CalendarDays className="w-10 h-10 md:w-12 md:h-12 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">Chưa có kế hoạch nào được tạo</p>
-            </div>
-          )}
+                </motion.div>
+              );
+            })}
+            {filteredListPlans.length === 0 && (
+              <div className="bg-white p-8 md:p-12 rounded-xl md:rounded-2xl border border-dashed border-slate-200 text-center">
+                <CalendarDays className="w-10 h-10 md:w-12 md:h-12 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 font-semibold text-sm">Không tìm thấy kế hoạch phù hợp</p>
+                <p className="text-slate-400 text-xs mt-1">Thử thay đổi bộ lọc hoặc tạo một kế hoạch mới</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">
                     {editingPlan ? 'Chỉnh sửa nhiệm vụ' : 'Thêm nhiệm vụ mới'}
                   </h3>
-                  <p className="text-xs text-indigo-600 font-semibold mt-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>
-                      {formData.startDate 
-                        ? `Lên lịch ngày: ${format(new Date(formData.startDate), 'dd/MM/yyyy')}`
-                        : 'Lên lịch công việc'}
+                  <p className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2 flex-wrap">
+                    <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Bắt đầu: {formData.startDate ? format(new Date(formData.startDate), 'dd/MM/yyyy') : ''}
+                    </span>
+                    <span className="text-slate-300">&bull;</span>
+                    <span className="flex items-center gap-1 text-rose-700 font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                      Hạn chót: {formData.endDate ? format(new Date(formData.endDate), 'dd/MM/yyyy') : ''}
                     </span>
                   </p>
                 </div>
@@ -1451,7 +1796,8 @@ const Plans = ({ plans }: { plans: any[] }) => {
                       required
                       value={formData.title}
                       onChange={(e) => setFormData({...formData, title: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      placeholder="VD: Cấy meo giống đợt 3..."
+                      className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                     />
                   </div>
                   <div>
@@ -1460,36 +1806,91 @@ const Plans = ({ plans }: { plans: any[] }) => {
                       rows={3}
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
+                      placeholder="Ghi chú chi tiết công việc..."
+                      className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Thời gian hoàn thành</label>
-                    <input 
-                      type="datetime-local" 
-                      required
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
+                  {campaigns && campaigns.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1.5">
+                        <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Thuộc Chiến dịch / Đợt vào nấm (Tùy chọn)</span>
+                      </label>
+                      <select
+                        value={formData.campaignId || ''}
+                        onChange={(e) => setFormData({ ...formData, campaignId: e.target.value })}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-white font-medium"
+                      >
+                        <option value="">-- Không thuộc đợt nào (Kế hoạch chung) --</option>
+                        {campaigns.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.variety ? `(${c.variety})` : ''} {c.location ? `— ${c.location}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-800 uppercase mb-2 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 ring-2 ring-emerald-200"></span>
+                        <span>Ngày bắt đầu mục tiêu</span>
+                      </label>
+                      <input 
+                        type="datetime-local" 
+                        required
+                        value={formData.startDate}
+                        onChange={(e) => {
+                          setFormData({...formData, startDate: e.target.value});
+                          setDateError(null);
+                        }}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all min-h-[44px] bg-emerald-50/20 focus:bg-white"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">Mốc bắt đầu triển khai mục tiêu</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-rose-800 uppercase mb-2 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ring-2 ring-rose-200"></span>
+                        <span>Thời hạn hoàn thành</span>
+                      </label>
+                      <input 
+                        type="datetime-local" 
+                        required
+                        value={formData.endDate}
+                        onChange={(e) => {
+                          setFormData({...formData, endDate: e.target.value});
+                          setDateError(null);
+                        }}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-rose-500 outline-none transition-all min-h-[44px] bg-rose-50/20 focus:bg-white"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">Hạn chót hoàn thành mục tiêu</p>
+                    </div>
                   </div>
+
+                  {dateError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                      <span>{dateError}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-6 border-t border-slate-100">
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-4">Hạng mục con (Subtasks)</label>
-                  <div className="flex gap-2 mb-4">
+                <div className="pt-5 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Hạng mục con (Subtasks)</label>
+                  <div className="flex gap-2 mb-3">
                     <input 
                       type="text" 
                       value={newSubtask}
                       onChange={(e) => setNewSubtask(e.target.value)}
                       placeholder="Thêm hạng mục nhỏ..."
-                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="flex-1 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
                     />
                     <button 
                       type="button"
                       onClick={addSubtask}
-                      className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
+                      className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-95 touch-manipulation"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
@@ -1497,27 +1898,30 @@ const Plans = ({ plans }: { plans: any[] }) => {
                   
                   <div className="space-y-2">
                     {formData.subtasks.map((st) => (
-                      <div key={st.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl group">
-                        <div className="flex items-center gap-3">
+                      <div key={st.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-slate-50 rounded-xl group">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                           <button 
                             type="button"
                             onClick={() => toggleSubtask(st.id)}
                             className={cn(
-                              "transition-colors",
+                              "min-w-[40px] min-h-[40px] flex items-center justify-center -ml-1 p-1.5 rounded-lg transition-transform active:scale-90 touch-manipulation shrink-0",
                               st.completed ? "text-emerald-500" : "text-slate-300"
                             )}
                           >
                             {st.completed ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                           </button>
                           <span className={cn(
-                            "text-sm font-medium",
+                            "text-xs sm:text-sm font-medium transition-all break-words flex-1 cursor-pointer select-none",
                             st.completed ? "text-slate-400 line-through" : "text-slate-700"
-                          )}>{st.title}</span>
+                          )}
+                          onClick={() => toggleSubtask(st.id)}
+                          >{st.title}</span>
                         </div>
                         <button 
                           type="button"
                           onClick={() => removeSubtask(st.id)}
-                          className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                          className="min-w-[36px] min-h-[36px] flex items-center justify-center p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0 active:scale-95 touch-manipulation"
+                          title="Xóa"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1526,17 +1930,17 @@ const Plans = ({ plans }: { plans: any[] }) => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-2.5 pt-3">
                   <button 
                     type="button"
                     onClick={closeModal}
-                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                    className="flex-1 py-3 sm:py-3.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all text-xs sm:text-sm min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     Hủy
                   </button>
                   <button 
                     type="submit" 
-                    className="flex-[2] py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                    className="flex-[2] py-3 sm:py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 text-xs sm:text-sm min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     {editingPlan ? 'Cập nhật' : 'Lưu nhiệm vụ'}
                   </button>
@@ -1617,9 +2021,10 @@ const MushroomIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
 
 const Sidebar = ({ activeTab, setActiveTab, user }: { activeTab: Tab, setActiveTab: (tab: Tab) => void, user: User | null }) => {
   const menuItems = [
+    { id: 'campaigns', label: 'Chiến dịch', icon: Sprout },
     { id: 'plans', label: 'Kế hoạch', icon: CalendarDays },
-    { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'transactions', label: 'Thu chi', icon: Receipt },
+    { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart },
     { id: 'workers', label: 'Nhân sự', icon: Users },
   ];
@@ -1686,7 +2091,7 @@ const Sidebar = ({ activeTab, setActiveTab, user }: { activeTab: Tab, setActiveT
   );
 };
 
-const Dashboard = ({ transactions, orders, workers, plans }: any) => {
+const Dashboard = ({ transactions, orders, workers, plans, campaigns = [], onNavigate }: any) => {
   const totalIncome = transactions.filter((t: any) => t.type === 'income').reduce((acc: number, t: any) => acc + t.amount, 0);
   const totalExpense = transactions.filter((t: any) => t.type === 'expense').reduce((acc: number, t: any) => acc + t.amount, 0);
   const balance = totalIncome - totalExpense;
@@ -1697,31 +2102,70 @@ const Dashboard = ({ transactions, orders, workers, plans }: any) => {
   ];
 
   const stats = [
-    { label: 'Số dư hiện tại', value: formatCurrency(balance), icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Đơn hàng mới', value: orders.filter((o: any) => o.status === 'pending').length, icon: ShoppingCart, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Nhân sự hoạt động', value: workers.filter((w: any) => w.status === 'active').length, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Kế hoạch hôm nay', value: plans.length, icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Số dư hiện tại', value: formatCurrency(balance), icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50', tab: 'transactions' },
+    { label: 'Đợt nấm đang chạy', value: campaigns.filter((c: any) => c.status === 'active').length, icon: Sprout, color: 'text-emerald-600', bg: 'bg-emerald-50', tab: 'campaigns' },
+    { label: 'Kế hoạch công việc', value: plans.length, icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50', tab: 'plans' },
+    { label: 'Đơn hàng mới', value: orders.filter((o: any) => o.status === 'pending').length, icon: ShoppingCart, color: 'text-amber-600', bg: 'bg-amber-50', tab: 'orders' },
   ];
 
   return (
-    <div className="space-y-5 md:space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+    <div className="space-y-4 md:space-y-8 animate-in fade-in duration-500">
+      {/* Mobile Quick Action Buttons Bar */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-xs">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Phím tắt nhanh</span>
+          <span className="text-[11px] text-slate-400">Chạm để mở</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            onClick={() => onNavigate?.('campaigns')}
+            className="flex items-center justify-center gap-1.5 p-2.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-100 active:scale-95 touch-manipulation min-h-[44px]"
+          >
+            <Sprout className="w-4 h-4 text-emerald-600" />
+            <span className="truncate">Chiến dịch</span>
+          </button>
+          <button
+            onClick={() => onNavigate?.('plans')}
+            className="flex items-center justify-center gap-1.5 p-2.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-100 active:scale-95 touch-manipulation min-h-[44px]"
+          >
+            <CalendarDays className="w-4 h-4 text-blue-600" />
+            <span className="truncate">Kế hoạch</span>
+          </button>
+          <button
+            onClick={() => onNavigate?.('transactions')}
+            className="flex items-center justify-center gap-1.5 p-2.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-100 active:scale-95 touch-manipulation min-h-[44px]"
+          >
+            <Receipt className="w-4 h-4 text-indigo-600" />
+            <span className="truncate">Sổ Thu Chi</span>
+          </button>
+          <button
+            onClick={() => onNavigate?.('orders')}
+            className="flex items-center justify-center gap-1.5 p-2.5 bg-slate-50 hover:bg-amber-50 hover:text-amber-700 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-100 active:scale-95 touch-manipulation min-h-[44px]"
+          >
+            <ShoppingCart className="w-4 h-4 text-amber-600" />
+            <span className="truncate">Đơn hàng</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
         {stats.map((stat, i) => (
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            key={stat.label} 
-            className="bg-white p-3 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+            key={stat.label}
+            onClick={() => onNavigate?.(stat.tab)}
+            className="bg-white p-3 sm:p-5 md:p-6 rounded-2xl border border-slate-100 shadow-xs hover:shadow-md hover:border-slate-200 transition-all flex flex-col justify-between cursor-pointer active:scale-98 touch-manipulation"
           >
             <div className="flex items-center justify-between mb-2 md:mb-4">
-              <div className={cn("p-2 md:p-3 rounded-lg md:rounded-xl", stat.bg)}>
-                <stat.icon className={cn("w-5 h-5 md:w-6 md:h-6", stat.color)} />
+              <div className={cn("p-2 sm:p-2.5 md:p-3 rounded-xl", stat.bg)}>
+                <stat.icon className={cn("w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6", stat.color)} />
               </div>
             </div>
             <div>
-              <p className="text-[10px] md:text-sm text-slate-500 font-semibold truncate leading-none">{stat.label}</p>
-              <h3 className="text-sm md:text-2xl font-black text-slate-900 mt-1.5 break-words leading-none">{stat.value}</h3>
+              <p className="text-[10px] sm:text-xs md:text-sm text-slate-500 font-semibold truncate leading-none">{stat.label}</p>
+              <h3 className="text-xs sm:text-lg md:text-2xl font-black text-slate-900 mt-1.5 break-words leading-tight">{stat.value}</h3>
             </div>
           </motion.div>
         ))}
@@ -1797,7 +2241,7 @@ const DEFAULT_CATEGORIES: Record<'income' | 'expense', string[]> = {
   ]
 };
 
-const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans?: any[] }) => {
+const Transactions = ({ transactions, plans = [], campaigns = [] }: { transactions: any[]; plans?: any[]; campaigns?: any[] }) => {
   const [subTab, setSubTab] = useState<'overview' | 'actual' | 'budget'>('overview');
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
@@ -1837,7 +2281,8 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
     category: '', 
     description: '', 
     date: format(new Date(), 'yyyy-MM-dd'),
-    planId: ''
+    planId: '',
+    campaignId: ''
   });
 
   // Hàm tự động lưu và đưa hạng mục vừa dùng lên đầu danh sách gợi ý
@@ -2035,7 +2480,8 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
         const matchCategory = t.category?.toLowerCase().includes(q);
         const matchDesc = t.description?.toLowerCase().includes(q);
         const matchPlan = t.planTitle?.toLowerCase().includes(q);
-        if (!matchCategory && !matchDesc && !matchPlan) {
+        const matchCampaign = t.campaignName?.toLowerCase().includes(q);
+        if (!matchCategory && !matchDesc && !matchPlan && !matchCampaign) {
           return false;
         }
       }
@@ -2090,7 +2536,8 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
       category: '', 
       description: '', 
       date: format(new Date(), 'yyyy-MM-dd'),
-      planId: ''
+      planId: '',
+      campaignId: ''
     });
     setShowModal(true);
   };
@@ -2112,7 +2559,8 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
       category: t.category || '', 
       description: t.description || '', 
       date: dateStr,
-      planId: t.planId || ''
+      planId: t.planId || '',
+      campaignId: t.campaignId || ''
     });
     setShowModal(true);
   };
@@ -2124,6 +2572,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
 
     try {
       const linkedPlan = plans.find(p => p.id === formData.planId);
+      const linkedCampaign = campaigns.find(c => c.id === formData.campaignId);
       const dataToSave: any = {
         type: formData.type,
         amount: Number(formData.amount),
@@ -2137,6 +2586,14 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
       } else {
         dataToSave.planId = null;
         dataToSave.planTitle = null;
+      }
+
+      if (formData.campaignId && linkedCampaign) {
+        dataToSave.campaignId = linkedCampaign.id;
+        dataToSave.campaignName = linkedCampaign.name;
+      } else {
+        dataToSave.campaignId = null;
+        dataToSave.campaignName = null;
       }
 
       if (editingTransaction) {
@@ -2164,7 +2621,8 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
         category: '', 
         description: '', 
         date: format(new Date(), 'yyyy-MM-dd'),
-        planId: '' 
+        planId: '',
+        campaignId: '' 
       });
     } catch (err) {
       console.error('Error saving transaction:', err);
@@ -2259,29 +2717,29 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
       ) : (
         <div className="space-y-4 md:space-y-6">
           {/* Quick Cashflow Summary Cards */}
-          <div className="grid grid-cols-3 gap-3 md:gap-4">
-            <div className="bg-white p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+            <div className="bg-white p-2.5 sm:p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between">
+              <span className="text-[9px] sm:text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5 sm:mb-1 truncate">
                 Tổng thu
               </span>
-              <p className="text-sm md:text-xl font-black text-emerald-600 truncate">
+              <p className="text-xs sm:text-base md:text-xl font-black text-emerald-600 truncate break-words">
                 +{formatCurrency(totalIncome)}
               </p>
             </div>
-            <div className="bg-white p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <div className="bg-white p-2.5 sm:p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between">
+              <span className="text-[9px] sm:text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5 sm:mb-1 truncate">
                 Tổng chi
               </span>
-              <p className="text-sm md:text-xl font-black text-red-600 truncate">
+              <p className="text-xs sm:text-base md:text-xl font-black text-red-600 truncate break-words">
                 -{formatCurrency(totalExpense)}
               </p>
             </div>
-            <div className="bg-white p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs">
-              <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Số dư hiện tại
+            <div className="bg-white p-2.5 sm:p-3.5 md:p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col justify-between">
+              <span className="text-[9px] sm:text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5 sm:mb-1 truncate">
+                Số dư
               </span>
               <p className={cn(
-                "text-sm md:text-xl font-black truncate",
+                "text-xs sm:text-base md:text-xl font-black truncate break-words",
                 balance >= 0 ? "text-indigo-600" : "text-amber-600"
               )}>
                 {formatCurrency(balance)}
@@ -2293,27 +2751,27 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">Danh sách giao dịch thực tế</h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">Danh sách giao dịch thực tế</h3>
+                <span className="px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
                   {isFiltered ? `${filteredTransactions.length} / ${transactions.length}` : `${transactions.length}`}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Các khoản thu chi tiền mặt, chuyển khoản đã thực hiện</p>
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Các khoản thu chi tiền mặt, chuyển khoản đã thực hiện</p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => setSubTab('overview')}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs md:text-sm font-bold transition-all"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95"
               >
-                <BarChart3 className="w-4 h-4 text-indigo-600" />
-                <span>Thống kê chi tiết</span>
+                <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+                <span>Thống kê</span>
               </button>
               <button 
                 onClick={handleOpenAdd}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs md:text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-indigo-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 active:scale-95"
               >
-                <Plus className="w-4 h-4" />
-                <span>Thêm giao dịch</span>
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Ghi khoản mới</span>
               </button>
             </div>
           </div>
@@ -2329,25 +2787,25 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm theo hạng mục, ghi chú, kế hoạch..."
-                  className="w-full pl-9 pr-8 py-2 text-xs md:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 bg-slate-50/60 focus:bg-white"
+                  className="w-full pl-9 pr-9 py-2.5 text-base sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 bg-slate-50/60 focus:bg-white min-h-[44px]"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg"
                     title="Xóa tìm kiếm"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
               {/* Type Filter Buttons */}
-              <div className="flex items-center p-1 bg-slate-100 rounded-xl shrink-0 self-start md:self-auto border border-slate-200/50">
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl shrink-0 w-full sm:w-auto border border-slate-200/50 justify-between">
                 <button
                   onClick={() => setFilterType('all')}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    "flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-bold transition-all min-h-[38px] active:scale-95 touch-manipulation",
                     filterType === 'all' ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
                   )}
                 >
@@ -2356,21 +2814,21 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                 <button
                   onClick={() => setFilterType('income')}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                    "flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 min-h-[38px] active:scale-95 touch-manipulation",
                     filterType === 'income' ? "bg-emerald-600 text-white shadow-xs" : "text-slate-500 hover:text-emerald-700"
                   )}
                 >
-                  <TrendingUp className="w-3 h-3" />
+                  <TrendingUp className="w-3.5 h-3.5" />
                   <span>Thu</span>
                 </button>
                 <button
                   onClick={() => setFilterType('expense')}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                    "flex-1 sm:flex-initial px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 min-h-[38px] active:scale-95 touch-manipulation",
                     filterType === 'expense' ? "bg-red-600 text-white shadow-xs" : "text-slate-500 hover:text-red-700"
                   )}
                 >
-                  <TrendingDown className="w-3 h-3" />
+                  <TrendingDown className="w-3.5 h-3.5" />
                   <span>Chi</span>
                 </button>
               </div>
@@ -2393,7 +2851,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className={cn(
-                    "w-full px-3 py-2 rounded-xl border text-xs md:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white",
+                    "w-full px-3 py-2.5 rounded-xl border text-base sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white min-h-[44px]",
                     filterCategory !== 'all' ? "border-indigo-400 bg-indigo-50/40 text-indigo-900 font-bold" : "border-slate-200 text-slate-700"
                   )}
                 >
@@ -2419,7 +2877,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                   value={filterTime}
                   onChange={(e) => setFilterTime(e.target.value as any)}
                   className={cn(
-                    "w-full px-3 py-2 rounded-xl border text-xs md:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white",
+                    "w-full px-3 py-2.5 rounded-xl border text-base sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white min-h-[44px]",
                     filterTime !== 'all' ? "border-indigo-400 bg-indigo-50/40 text-indigo-900 font-bold" : "border-slate-200 text-slate-700"
                   )}
                 >
@@ -2447,7 +2905,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                   value={filterPlan}
                   onChange={(e) => setFilterPlan(e.target.value)}
                   className={cn(
-                    "w-full px-3 py-2 rounded-xl border text-xs md:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white",
+                    "w-full px-3 py-2.5 rounded-xl border text-base sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all bg-white min-h-[44px]",
                     filterPlan !== 'all' ? "border-indigo-400 bg-indigo-50/40 text-indigo-900 font-bold" : "border-slate-200 text-slate-700"
                   )}
                 >
@@ -2467,28 +2925,28 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
 
             {/* Custom Date Range Inputs (when filterTime === 'custom') */}
             {filterTime === 'custom' && (
-              <div className="flex flex-wrap items-center gap-3 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs animate-in fade-in duration-200">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs animate-in fade-in duration-200">
                 <span className="font-bold text-indigo-900 shrink-0 flex items-center gap-1">
-                  <CalendarClock className="w-3.5 h-3.5 text-indigo-600" />
+                  <CalendarClock className="w-4 h-4 text-indigo-600" />
                   Chọn mốc ngày:
                 </span>
-                <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-                  <div className="flex items-center gap-1 flex-1">
-                    <span className="text-slate-500 font-medium">Từ:</span>
+                <div className="grid grid-cols-2 gap-2 flex-1">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500 font-medium text-[11px]">Từ ngày:</span>
                     <input
                       type="date"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-base sm:text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500 min-h-[42px]"
                     />
                   </div>
-                  <div className="flex items-center gap-1 flex-1">
-                    <span className="text-slate-500 font-medium">Đến:</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500 font-medium text-[11px]">Đến ngày:</span>
                     <input
                       type="date"
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-base sm:text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500 min-h-[42px]"
                     />
                   </div>
                 </div>
@@ -2496,7 +2954,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                   <button
                     type="button"
                     onClick={() => { setCustomStartDate(''); setCustomEndDate(''); }}
-                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline shrink-0"
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline self-end sm:self-center py-1 min-h-[36px] flex items-center"
                   >
                     Xóa mốc ngày
                   </button>
@@ -2528,9 +2986,9 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors cursor-pointer min-h-[38px] active:scale-95 touch-manipulation"
                 >
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                   <span>Xóa bộ lọc</span>
                 </button>
               </div>
@@ -2541,7 +2999,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
             {/* Mobile View: Transaction Cards list */}
             <div className="block md:hidden divide-y divide-slate-100">
               {filteredTransactions.map((t) => (
-                <div key={t.id} className="p-3.5 flex flex-col gap-2 hover:bg-slate-50/50 transition-colors">
+                <div key={t.id} className="p-3.5 sm:p-4 flex flex-col gap-2 hover:bg-slate-50/50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-semibold text-slate-400">{getFormattedTxDate(t.date)}</span>
@@ -2552,11 +3010,11 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                         {t.type === 'income' ? 'Thu' : 'Chi'}
                       </span>
                     </div>
-                    {/* Action buttons on Mobile */}
-                    <div className="flex items-center gap-1">
+                    {/* Action buttons on Mobile with touch ergonomics */}
+                    <div className="flex items-center gap-1.5">
                       <button 
                         onClick={() => handleOpenEdit(t)}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors min-h-[36px] active:scale-95 touch-manipulation"
                         title="Chỉnh sửa giao dịch"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -2564,10 +3022,10 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                       </button>
                       <button 
                         onClick={() => setDeletingTransaction(t)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center active:scale-95 touch-manipulation"
                         title="Xóa giao dịch"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -2576,14 +3034,20 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                       <p className="text-sm font-bold text-slate-900 truncate">{t.category}</p>
                       {t.description && <p className="text-xs text-slate-500 mt-0.5 break-words">{t.description}</p>}
                       {t.planTitle && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 border border-indigo-100">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 mr-1 border border-indigo-100">
                           <Calendar className="w-2.5 h-2.5" />
                           <span>Kế hoạch: {t.planTitle}</span>
                         </span>
                       )}
+                      {t.campaignName && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-100">
+                          <Sprout className="w-2.5 h-2.5" />
+                          <span>Vụ: {t.campaignName}</span>
+                        </span>
+                      )}
                     </div>
                     <p className={cn(
-                      "text-sm font-extrabold shrink-0 text-right",
+                      "text-sm sm:text-base font-extrabold shrink-0 text-right",
                       t.type === 'income' ? "text-emerald-600" : "text-red-600"
                     )}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
@@ -2640,9 +3104,15 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                         <div>
                           <p className="text-slate-800 font-medium">{t.description || '—'}</p>
                           {t.planTitle && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 border border-indigo-100">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mt-1 mr-1.5 border border-indigo-100">
                               <Calendar className="w-3 h-3" />
                               <span>Thuộc: {t.planTitle}</span>
+                            </span>
+                          )}
+                          {t.campaignName && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-100">
+                              <Sprout className="w-3 h-3" />
+                              <span>Vụ: {t.campaignName}</span>
                             </span>
                           )}
                         </div>
@@ -2728,8 +3198,11 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                  <X className="w-5 h-5 text-slate-400" />
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -2739,13 +3212,23 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     <button 
                       type="button"
                       onClick={() => setFormData({...formData, type: 'income'})}
-                      className={cn("py-2.5 rounded-xl text-xs md:text-sm font-bold border-2 transition-all", formData.type === 'income' ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-100 text-slate-400")}
-                    >Thu tiền</button>
+                      className={cn(
+                        "py-2.5 rounded-xl text-xs md:text-sm font-bold border-2 transition-all min-h-[44px] active:scale-95 touch-manipulation", 
+                        formData.type === 'income' ? "border-emerald-500 bg-emerald-50 text-emerald-700 font-extrabold" : "border-slate-100 text-slate-400"
+                      )}
+                    >
+                      Thu tiền
+                    </button>
                     <button 
                       type="button"
                       onClick={() => setFormData({...formData, type: 'expense'})}
-                      className={cn("py-2.5 rounded-xl text-xs md:text-sm font-bold border-2 transition-all", formData.type === 'expense' ? "border-red-500 bg-red-50 text-red-700" : "border-slate-100 text-slate-400")}
-                    >Chi tiền</button>
+                      className={cn(
+                        "py-2.5 rounded-xl text-xs md:text-sm font-bold border-2 transition-all min-h-[44px] active:scale-95 touch-manipulation", 
+                        formData.type === 'expense' ? "border-red-500 bg-red-50 text-red-700 font-extrabold" : "border-slate-100 text-slate-400"
+                      )}
+                    >
+                      Chi tiền
+                    </button>
                   </div>
                 </div>
 
@@ -2758,7 +3241,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     <select
                       value={formData.planId}
                       onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs md:text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
+                      className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium min-h-[44px]"
                     >
                       <option value="">-- Không gắn vào kế hoạch nào --</option>
                       {plans.map(p => (
@@ -2769,6 +3252,34 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                       <p className="text-[11px] text-indigo-600 font-semibold mt-1 flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         Khoản chi này sẽ tính vào tiến độ giải ngân của kế hoạch đã chọn.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Campaign Linkage (Optional) */}
+                {campaigns && campaigns.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 flex items-center gap-1.5">
+                      <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Thuộc Chiến dịch / Đợt vào nấm (Tùy chọn)</span>
+                    </label>
+                    <select
+                      value={formData.campaignId}
+                      onChange={(e) => setFormData({ ...formData, campaignId: e.target.value })}
+                      className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium min-h-[44px]"
+                    >
+                      <option value="">-- Không gắn vào đợt nào (Thu chi chung) --</option>
+                      {campaigns.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.variety ? `(${c.variety})` : ''} {c.location ? `— ${c.location}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.campaignId && (
+                      <p className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                        <Sprout className="w-3 h-3 text-emerald-600" />
+                        Khoản này sẽ được hạch toán trực tiếp vào đợt nấm đã chọn.
                       </p>
                     )}
                   </div>
@@ -2791,9 +3302,10 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     required
                     min="0"
                     step="1000"
+                    inputMode="numeric"
                     value={formData.amount || ''}
                     onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                     placeholder="Nhập số tiền..."
                   />
                 </div>
@@ -2818,7 +3330,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                     placeholder="VD: Bán nấm sò, Tiền điện, Mua phôi giống..."
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all mb-2 font-medium"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all mb-2 font-medium min-h-[44px]"
                   />
                   <datalist id="category-suggestions-list">
                     {availableCategories.map(cat => (
@@ -2848,7 +3360,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                             key={cat}
                             onClick={() => setFormData({ ...formData, category: cat })}
                             className={cn(
-                              "group inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg font-semibold transition-all border cursor-pointer select-none",
+                              "group inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all border cursor-pointer select-none min-h-[32px] active:scale-95 touch-manipulation",
                               isSelected 
                                 ? (formData.type === 'income' 
                                     ? "bg-emerald-600 text-white border-emerald-600 shadow-xs" 
@@ -2862,7 +3374,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                                 type="button"
                                 onClick={(e) => removeCategorySuggestion(formData.type as 'income' | 'expense', cat, e)}
                                 className={cn(
-                                  "opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10 -mr-1",
+                                  "opacity-70 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10 -mr-0.5 min-w-[20px] min-h-[20px] flex items-center justify-center",
                                   isSelected ? "text-white/80 hover:text-white" : "text-slate-400 hover:text-red-500"
                                 )}
                                 title="Xóa khỏi danh sách gợi ý"
@@ -2887,7 +3399,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     placeholder="VD: Chuyển khoản qua Vietcombank, 500 bịch giống..."
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
 
@@ -2898,7 +3410,7 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     required
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
 
@@ -2907,14 +3419,14 @@ const Transactions = ({ transactions, plans = [] }: { transactions: any[]; plans
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => setShowModal(false)}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all"
+                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs md:text-sm transition-all min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     Hủy
                   </button>
                   <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs md:text-sm transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 min-h-[48px] active:scale-95 touch-manipulation"
                   >
                     {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                     <span>{isSubmitting ? "Đang lưu..." : (editingTransaction ? "Cập nhật thay đổi" : "Lưu giao dịch")}</span>
@@ -3066,19 +3578,23 @@ const Orders = ({ orders }: { orders: any[] }) => {
                 </div>
                 <h3 className="text-base md:text-lg font-bold text-slate-900">{order.customerName}</h3>
                 {order.customerPhone && (
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{order.customerPhone}</span>
-                  </p>
+                  <a 
+                    href={`tel:${order.customerPhone}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50/70 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg border border-indigo-100 mt-1.5 active:scale-95 touch-manipulation w-fit min-h-[36px]"
+                    title="Bấm để gọi khách hàng"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{order.customerPhone} (Gọi)</span>
+                  </a>
                 )}
                 <p className="text-xs md:text-sm text-slate-600 mt-2.5 line-clamp-3 bg-slate-50 p-2.5 md:p-3 rounded-xl border border-slate-100">{order.items}</p>
               </div>
               <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-base md:text-lg font-bold text-indigo-600">{formatCurrency(order.totalAmount)}</p>
+                <p className="text-base md:text-lg font-black text-indigo-600">{formatCurrency(order.totalAmount)}</p>
                 <select 
                   value={order.status}
                   onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                  className="text-xs font-bold bg-slate-50 border-none rounded-lg px-2 py-1 focus:ring-0 cursor-pointer text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="text-xs font-bold bg-slate-100 border border-slate-200/60 rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-indigo-500 cursor-pointer text-slate-700 hover:bg-slate-200 transition-colors min-h-[40px]"
                 >
                   <option value="pending">Chờ xử lý</option>
                   <option value="processing">Đang xử lý</option>
@@ -3095,16 +3611,16 @@ const Orders = ({ orders }: { orders: any[] }) => {
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="text-xl font-bold text-slate-900">Tạo đơn hàng mới</h3>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center">
                   <X className="w-5 h-5 text-slate-400" />
                 </button>
               </div>
@@ -3117,7 +3633,7 @@ const Orders = ({ orders }: { orders: any[] }) => {
                     value={formData.customerName}
                     onChange={(e) => setFormData({...formData, customerName: e.target.value})}
                     placeholder="VD: Nguyễn Văn A"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
@@ -3127,7 +3643,7 @@ const Orders = ({ orders }: { orders: any[] }) => {
                     value={formData.customerPhone}
                     onChange={(e) => setFormData({...formData, customerPhone: e.target.value})}
                     placeholder="VD: 0987654321"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
@@ -3137,31 +3653,33 @@ const Orders = ({ orders }: { orders: any[] }) => {
                     required
                     value={formData.orderTime}
                     onChange={(e) => setFormData({...formData, orderTime: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tổng tiền</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tổng tiền (VNĐ)</label>
                   <input 
                     type="number" 
+                    inputMode="numeric"
                     required
                     value={formData.totalAmount}
                     onChange={(e) => setFormData({...formData, totalAmount: Number(e.target.value)})}
-                    placeholder="Nhập số tiền"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sản phẩm / Ghi chú</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Danh sách mặt hàng</label>
                   <textarea 
                     rows={3}
+                    required
                     value={formData.items}
                     onChange={(e) => setFormData({...formData, items: e.target.value})}
-                    placeholder="VD: 2 Trà sữa Matcha ít đường..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
+                    placeholder="VD: 20kg nấm sò, 10 bịch phôi giống..."
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
                   />
                 </div>
-                <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-indigo-100">
+                <button type="submit" className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-indigo-100 min-h-[48px] active:scale-95 touch-manipulation">
                   Tạo đơn hàng
                 </button>
               </form>
@@ -3231,17 +3749,20 @@ const Workers = ({ workers }: { workers: any[] }) => {
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl"
+              className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="text-xl font-bold text-slate-900">Thêm nhân viên mới</h3>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                  <X className="w-5 h-5 text-slate-400" />
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="p-2 hover:bg-slate-100 rounded-full transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -3252,7 +3773,8 @@ const Workers = ({ workers }: { workers: any[] }) => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="VD: Nguyễn Văn B"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
@@ -3262,28 +3784,35 @@ const Workers = ({ workers }: { workers: any[] }) => {
                     required
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="VD: Kỹ thuật đóng bịch, Thu hoạch..."
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Số điện thoại</label>
                   <input 
-                    type="text" 
+                    type="tel" 
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="VD: 0912345678"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Mức lương</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Mức lương (VNĐ)</label>
                   <input 
                     type="number" 
+                    inputMode="numeric"
                     value={formData.salary}
                     onChange={(e) => setFormData({...formData, salary: Number(e.target.value)})}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 text-base sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[44px]"
                   />
                 </div>
-                <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-indigo-100">
+                <button 
+                  type="submit" 
+                  className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-indigo-100 min-h-[48px] active:scale-95 touch-manipulation"
+                >
                   Thêm nhân viên
                 </button>
               </form>
@@ -3306,6 +3835,7 @@ export default function App() {
   const [orders, setOrders] = useState<any[]>([]);
   const [workers, setWorkers] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -3323,12 +3853,14 @@ export default function App() {
     const unsubO = subscribeOrders(setOrders);
     const unsubW = subscribeWorkers(setWorkers);
     const unsubP = subscribePlans(setPlans);
+    const unsubC = subscribeCampaigns(setCampaigns);
 
     return () => {
       unsubT();
       unsubO();
       unsubW();
       unsubP();
+      unsubC();
     };
   }, [user]);
 
@@ -3373,27 +3905,27 @@ export default function App() {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} />
       
       {/* Mobile Top Header */}
-      <div className="flex md:hidden items-center justify-between px-6 py-4 bg-white border-b border-slate-100 sticky top-0 z-40">
-        <div className="flex items-center gap-2.5">
+      <div className="flex md:hidden items-center justify-between px-3.5 py-2.5 bg-white border-b border-slate-100 sticky top-0 z-40 shadow-xs">
+        <div className="flex items-center gap-2">
           <img 
             src="/app-icon.png" 
             alt="Trại Nấm Michfarm" 
-            className="w-8 h-8 rounded-lg shadow-xs shrink-0 object-cover border border-emerald-100" 
+            className="w-7 h-7 rounded-lg shadow-xs shrink-0 object-cover border border-emerald-100" 
             referrerPolicy="no-referrer" 
           />
-          <span className="text-lg font-black text-emerald-800 tracking-tight">Trại Nấm Michfarm</span>
+          <span className="text-base font-black text-emerald-800 tracking-tight">Trại Nấm Michfarm</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <PWAInstallButton variant="compact" />
           {user && (
-            <div className="flex items-center gap-2">
-              <img src={user.photoURL || ''} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-slate-200" referrerPolicy="no-referrer" />
+            <div className="flex items-center gap-1">
+              <img src={user.photoURL || ''} alt={user.displayName || ''} className="w-7 h-7 rounded-full border border-slate-200 object-cover" referrerPolicy="no-referrer" />
               <button 
                 onClick={() => signOut(auth)}
-                className="p-2 text-slate-500 hover:text-red-600 hover:bg-slate-50 rounded-xl transition-all"
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-50 rounded-xl transition-all"
                 title="Đăng xuất"
               >
-                <LogOut className="w-4.5 h-4.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -3401,7 +3933,7 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8">
+      <main className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0.5rem))] md:pb-8">
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
@@ -3411,22 +3943,24 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'dashboard' && <Dashboard transactions={transactions} orders={orders} workers={workers} plans={plans} />}
-              {activeTab === 'transactions' && <Transactions transactions={transactions} plans={plans} />}
+              {activeTab === 'dashboard' && <Dashboard transactions={transactions} orders={orders} workers={workers} plans={plans} campaigns={campaigns} onNavigate={setActiveTab} />}
+              {activeTab === 'campaigns' && <Campaigns campaigns={campaigns} plans={plans} transactions={transactions} onNavigateTab={setActiveTab} />}
+              {activeTab === 'plans' && <Plans plans={plans} campaigns={campaigns} />}
+              {activeTab === 'transactions' && <Transactions transactions={transactions} plans={plans} campaigns={campaigns} />}
               {activeTab === 'orders' && <Orders orders={orders} />}
               {activeTab === 'workers' && <Workers workers={workers} />}
-              {activeTab === 'plans' && <Plans plans={plans} />}
             </motion.div>
           </AnimatePresence>
         </div>
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200/80 backdrop-blur-md px-2 py-2 z-40 justify-around items-center shadow-lg rounded-t-2xl">
+      <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-1 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] z-40 justify-around items-center shadow-[0_-4px_16px_rgba(0,0,0,0.06)] rounded-t-2xl">
         {[
+          { id: 'campaigns', label: 'Chiến dịch', icon: Sprout },
           { id: 'plans', label: 'Kế hoạch', icon: CalendarDays },
-          { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
           { id: 'transactions', label: 'Thu chi', icon: Receipt },
+          { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
           { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart },
           { id: 'workers', label: 'Nhân sự', icon: Users },
         ].map((item) => {
@@ -3436,14 +3970,14 @@ export default function App() {
               key={item.id}
               onClick={() => setActiveTab(item.id as Tab)}
               className={cn(
-                "flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all duration-200 text-center min-w-[64px]",
+                "flex flex-col items-center gap-0.5 py-1 px-1.5 rounded-xl transition-all duration-200 text-center min-w-[48px] active:scale-95 touch-manipulation select-none",
                 isActive 
-                  ? "text-indigo-600 font-bold bg-indigo-50/80" 
-                  : "text-slate-500 font-medium hover:text-slate-800"
+                  ? "text-emerald-700 font-black bg-emerald-50/90 shadow-2xs" 
+                  : "text-slate-500 font-semibold hover:text-slate-800"
               )}
             >
-              <item.icon className={cn("w-5 h-5 transition-transform duration-200", isActive && "scale-110")} />
-              <span className="text-[10px] tracking-tight">{item.label}</span>
+              <item.icon className={cn("w-5 h-5 transition-transform duration-200", isActive && "scale-110 text-emerald-600")} />
+              <span className="text-[9px] tracking-tight truncate max-w-[50px]">{item.label}</span>
             </button>
           );
         })}

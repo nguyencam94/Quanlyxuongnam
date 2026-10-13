@@ -1,4 +1,22 @@
-export type Tab = 'dashboard' | 'transactions' | 'orders' | 'workers' | 'plans';
+export type Tab = 'dashboard' | 'campaigns' | 'plans' | 'transactions' | 'orders' | 'workers';
+
+export interface Campaign {
+  id: string;
+  name: string;
+  code?: string;
+  variety?: string; // Giống nấm (Bào ngư xám, Linh chi, Mối đen, Nấm rơm...)
+  location?: string; // Nhà nấm / Khu vực
+  startDate: any;
+  endDate?: any;
+  status: 'active' | 'completed' | 'planned' | 'paused';
+  totalBags?: number; // Tổng số bịch phôi nấm
+  expectedYield?: number; // Sản lượng dự kiến (kg)
+  actualYield?: number; // Sản lượng thực tế (kg)
+  description?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: any;
+}
 
 export interface BudgetItem {
   id: string;
@@ -41,6 +59,9 @@ export interface Plan {
   extensionCount?: number;
   extensions?: PlanExtension[];
   originalStartDate?: any;
+  originalEndDate?: any;
+  campaignId?: string;
+  campaignName?: string;
 }
 
 export interface Transaction {
@@ -53,6 +74,8 @@ export interface Transaction {
   planId?: string;
   planTitle?: string;
   budgetItemId?: string;
+  campaignId?: string;
+  campaignName?: string;
   createdBy?: string;
 }
 
